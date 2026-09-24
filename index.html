@@ -34,7 +34,6 @@
             margin: 0 auto;
         }
 
-        /* --- HEADER --- */
         header {
             background-color: var(--white);
             box-shadow: 0 1px 5px rgba(0,0,0,0.05);
@@ -78,7 +77,6 @@
             color: var(--primary-blue);
         }
 
-        /* --- HERO SECTION TÍCH HỢP GIAO DIỆN CHAT --- */
         .hero-section {
             background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
             padding: 60px 0;
@@ -115,7 +113,6 @@
             margin-bottom: 20px;
         }
 
-        /* --- KHUNG CHATBOT HOÀN CHỈNH --- */
         .chat-box {
             background-color: var(--white);
             border-radius: 16px;
@@ -188,7 +185,6 @@
             border-bottom-right-radius: 2px;
         }
 
-        /* Hiệu ứng loading */
         .msg.loading {
             background-color: #e2e8f0;
             color: var(--text-muted);
@@ -228,7 +224,6 @@
             background-color: var(--dark-blue);
         }
 
-        /* --- TÍNH NĂNG --- */
         .features {
             padding: 70px 0;
             background-color: var(--white);
@@ -259,7 +254,6 @@
             color: var(--primary-blue);
         }
 
-        /* --- FOOTER KHẨN CẤP --- */
         footer {
             background-color: var(--dark-blue);
             color: #94a3b8;
@@ -286,30 +280,25 @@
 </head>
 <body>
 
-    <!-- THANH MENU -->
     <header>
         <div class="container">
             <nav>
                 <a href="#" class="logo">🤝 Bạn Đồng Hành</a>
                 <ul class="nav-links">
                     <li><a href="#tinhnang">Tính Năng</a></li>
-                    <li><a href="#baomat">Cam Kết Bảo Mật</a></li>
                 </ul>
             </nav>
         </div>
     </header>
 
-    <!-- BANNER CHÍNH TÍCH HỢP CHAT -->
     <section class="hero-section">
         <div class="container grid-layout">
             <div class="intro-text">
-                <div class="privacy-alert">🔒 <strong>Bảo mật 100%:</strong> Cuộc trò chuyện của bạn hoàn toàn ẩn danh, không lưu trữ danh tính thực tế.</div>
+                <div class="privacy-alert">🔒 <strong>Bảo mật 100%:</strong> Cuộc trò chuyện của bạn hoàn toàn ẩn danh.</div>
                 <h1>Trút bỏ gánh nặng lòng,<br>Có Bạn Đồng Hành lắng nghe.</h1>
-                <p>Không gian an toàn, không phán xét. Trợ lý AI kết nối trực tiếp với mô hình trí tuệ nhân tạo để lắng nghe áp lực học tập, thi cử và những tâm tư khó nói của học sinh 24/7.</p>
-                <p style="font-size: 14px; color: var(--text-muted);"><em>*Lưu ý: AI hỗ trợ giải tỏa cảm xúc bước đầu. Nếu gặp khủng hoảng tâm lý nghiêm trọng, hãy liên hệ ngay đường dây nóng phía dưới trang.</em></p>
+                <p>Không gian an toàn, không phán xét. Trợ lý AI lắng nghe áp lực học tập, thi cử và những tâm tư khó nói của học sinh 24/7.</p>
             </div>
 
-            <!-- GIAO DIỆN KHUNG CHAT INTERACTIVE -->
             <div class="chat-box">
                 <div class="chat-header">
                     <div class="bot-avatar">🤖</div>
@@ -329,13 +318,32 @@
         </div>
     </section>
 
-    <!-- TÍNH NĂNG -->
-    <section id="tinhnang" class="features container">
-        <div class="section-title">
-            <h2>Hệ thống hỗ trợ tâm lý toàn diện</h2>
-        </div>
-        <div class="feature-grid">
-            <div class="feature-card">
-                <h3>⏰ Luôn có mặt 24/7</h3>
-                <p>Áp lực thường đến vào ban đêm hoặc trước kỳ thi. Trợ lý AI luôn sẵn sàng trò chuyện bất cứ khi nào bạn cần mà không cần đặt lịch.</p>
-            </div>
+    <script>
+        let chatHistory = [];
+
+        async function sendMessage(event) {
+            event.preventDefault();
+            const input = document.getElementById('userInput');
+            const messagesContainer = document.getElementById('chatMessages');
+            const userText = input.value.trim();
+            
+            if (!userText) return;
+
+            // 1. Hiển thị tin nhắn người dùng
+            const userMsg = document.createElement('div');
+            userMsg.className = 'msg user';
+            userMsg.innerText = userText;
+            messagesContainer.appendChild(userMsg);
+            
+            input.value = '';
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            // 2. Hiện trạng thái chờ
+            const loadingMsg = document.createElement('div');
+            loadingMsg.className = 'msg bot loading';
+            loadingMsg.innerText = "Bạn Đồng Hành đang lắng nghe...";
+            messagesContainer.appendChild(loadingMsg);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            try {
+                // Kết nối trực tiếp tới Serverless Function an toàn nội bộ của Vercel
