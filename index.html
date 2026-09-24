@@ -280,6 +280,7 @@
 </head>
 <body>
 
+    <!-- THANH MENU -->
     <header>
         <div class="container">
             <nav>
@@ -291,6 +292,7 @@
         </div>
     </header>
 
+    <!-- BANNER CHÍNH TÍCH HỢP CHAT -->
     <section class="hero-section">
         <div class="container grid-layout">
             <div class="intro-text">
@@ -299,6 +301,7 @@
                 <p>Không gian an toàn, không phán xét. Trợ lý AI lắng nghe áp lực học tập, thi cử và những tâm tư khó nói của học sinh 24/7.</p>
             </div>
 
+            <!-- GIAO DIỆN KHUNG CHAT INTERACTIVE -->
             <div class="chat-box">
                 <div class="chat-header">
                     <div class="bot-avatar">🤖</div>
@@ -318,32 +321,26 @@
         </div>
     </section>
 
-    <script>
-        let chatHistory = [];
+    <!-- KHỐI TÍNH NĂNG -->
+    <section id="tinhnang" class="features container">
+        <div class="section-title">
+            <h2>Hệ thống hỗ trợ tâm lý toàn diện</h2>
+        </div>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3>⏰ Luôn có mặt 24/7</h3>
+                <p>Áp lực thường đến vào ban đêm hoặc trước kỳ thi. Trợ lý AI luôn sẵn sàng trò chuyện bất cứ khi nào bạn cần mà không cần đặt lịch.</p>
+            </div>
+            <div class="feature-card">
+                <h3>💬 Không Phán Xét</h3>
+                <p>Bạn tự do thể hiện cảm xúc, lo âu, hay thất vọng mà không sợ bị đánh giá hay so sánh với bất kỳ ai.</p>
+            </div>
+            <div class="feature-card">
+                <h3>🛠️ Bài Tập Sơ Cứu Cảm Xúc</h3>
+                <p>AI hướng dẫn bạn các bài tập điều hòa nhịp thở, chánh niệm và viết nhật ký giải tỏa stress tức thì.</p>
+            </div>
+        </div>
+    </section>
 
-        async function sendMessage(event) {
-            event.preventDefault();
-            const input = document.getElementById('userInput');
-            const messagesContainer = document.getElementById('chatMessages');
-            const userText = input.value.trim();
-            
-            if (!userText) return;
-
-            // 1. Hiển thị tin nhắn người dùng
-            const userMsg = document.createElement('div');
-            userMsg.className = 'msg user';
-            userMsg.innerText = userText;
-            messagesContainer.appendChild(userMsg);
-            
-            input.value = '';
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-            // 2. Hiện trạng thái chờ
-            const loadingMsg = document.createElement('div');
-            loadingMsg.className = 'msg bot loading';
-            loadingMsg.innerText = "Bạn Đồng Hành đang lắng nghe...";
-            messagesContainer.appendChild(loadingMsg);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-            try {
-                // Kết nối trực tiếp tới Serverless Function an toàn nội bộ của Vercel
+    <footer>
+        <div class="container">
