@@ -6,12 +6,12 @@
     <title>Bạn Đồng Hành - Trợ Lý AI Tư Vấn Tâm Lý Học Đường</title>
     <style>
         :root {
-            --soft-blue: #e0f2fe;    /* Xanh da trời nhạt dịu mắt */
-            --primary-blue: #0284c7; /* Xanh sâu tạo sự tin tưởng */
-            --dark-blue: #0c4a6e;    /* Xanh đậm thanh menu */
-            --mint: #f0fdf4;         /* Xanh lá mint nhẹ xoa dịu */
-            --text-dark: #1e293b;    /* Chữ chính xám đen */
-            --text-muted: #64748b;   /* Chữ phụ */
+            --soft-blue: #e0f2fe;    
+            --primary-blue: #0284c7; 
+            --dark-blue: #0c4a6e;    
+            --mint: #f0fdf4;         
+            --text-dark: #1e293b;    
+            --text-muted: #64748b;   
             --white: #ffffff;
         }
 
@@ -188,6 +188,13 @@
             border-bottom-right-radius: 2px;
         }
 
+        .msg.loading {
+            background-color: #e2e8f0;
+            color: var(--text-muted);
+            font-style: italic;
+            align-self: flex-start;
+        }
+
         .chat-input-area {
             padding: 15px;
             background-color: var(--white);
@@ -220,7 +227,7 @@
             background-color: var(--dark-blue);
         }
 
-        /* --- KHỐI TÍNH NĂNG --- */
+        /* --- TÍNH NĂNG --- */
         .features {
             padding: 70px 0;
             background-color: var(--white);
@@ -251,7 +258,7 @@
             color: var(--primary-blue);
         }
 
-        /* --- FOOTER KHẨN CẤP --- */
+        /* --- FOOTER --- */
         footer {
             background-color: var(--dark-blue);
             color: #94a3b8;
@@ -278,7 +285,6 @@
 </head>
 <body>
 
-    <!-- DIỀU HƯỚNG -->
     <header>
         <div class="container">
             <nav>
@@ -291,17 +297,15 @@
         </div>
     </header>
 
-    <!-- HERO SECTION TÍCH HỢP CHAT -->
     <section class="hero-section">
         <div class="container grid-layout">
             <div class="intro-text">
                 <div class="privacy-alert">🔒 <strong>Bảo mật 100%:</strong> Cuộc trò chuyện của bạn hoàn toàn ẩn danh, không lưu trữ danh tính thực tế.</div>
                 <h1>Trút bỏ gánh nặng lòng,<br>Có Bạn Đồng Hành lắng nghe.</h1>
-                <p>Không gian an toàn, không phán xét. Trợ lý AI được thiết kế để lắng nghe áp lực học tập, thi cử và những tâm tư khó nói của học sinh 24/7.</p>
+                <p>Không gian an toàn, không phán xét. Trợ lý AI kết nối trực tiếp với mô hình trí tuệ nhân tạo để lắng nghe áp lực học tập, thi cử và những tâm tư khó nói của học sinh 24/7.</p>
                 <p style="font-size: 14px; color: var(--text-muted);"><em>*Lưu ý: AI hỗ trợ giải tỏa cảm xúc bước đầu. Nếu gặp khủng hoảng tâm lý nghiêm trọng, hãy liên hệ ngay đường dây nóng phía dưới trang.</em></p>
             </div>
 
-            <!-- GIAO DIỆN KHUNG CHAT INTERACTIVE -->
             <div class="chat-box">
                 <div class="chat-header">
                     <div class="bot-avatar">🤖</div>
@@ -321,7 +325,6 @@
         </div>
     </section>
 
-    <!-- TÍNH NĂNG -->
     <section id="tinhnang" class="features container">
         <div class="section-title">
             <h2>Hệ thống hỗ trợ tâm lý toàn diện</h2>
@@ -332,3 +335,4 @@
                 <p>Áp lực thường đến vào ban đêm hoặc trước kỳ thi. Trợ lý AI luôn sẵn sàng trò chuyện bất cứ khi nào bạn cần mà không cần đặt lịch.</p>
             </div>
             <div class="feature-card">
+                <h3>💬 Không Phán Xét</h3>
