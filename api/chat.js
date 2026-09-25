@@ -1,6 +1,11 @@
 // tệp: /api/chat.js  — Serverless Function trên Vercel
 // Gọi trực tiếp REST API của Gemini, không cần thư viện ngoài.
 
+// ===== API KEY =====
+// Key được gắn trực tiếp ở đây (chạy trên máy chủ Vercel, người xem web KHÔNG thấy được).
+// Nếu sau này muốn đổi key: chỉ cần thay chuỗi bên dưới rồi deploy lại.
+const HARDCODED_API_KEY = "AQ.Ab8RN6I6La3MbzUFT8Tt66CHtlLrvZD-SgTykNlQm_BTGBEO5A";
+
 const SYSTEM_PROMPT = "Bạn là chuyên gia tư vấn tâm lý học đường mang tên 'Bạn Đồng Hành'. Hãy luôn lắng nghe học sinh với thái độ ấm áp, đồng cảm, nhẹ nhàng và tuyệt đối không phán xét. Nhiệm vụ của bạn là lắng nghe áp lực học tập, thi cử hoặc mâu thuẫn bạn bè của học sinh cấp 2, cấp 3. Hãy đưa ra câu trả lời ngắn gọn (tối đa 3-4 câu), tập trung xoa dịu cảm xúc và đặt câu hỏi gợi mở để học sinh tâm sự tiếp. Nếu phát hiện học sinh có dấu hiệu muốn tự hại nghiêm trọng, hãy khuyên học sinh gọi ngay Tổng đài 111 (miễn phí 24/7) hoặc 115, và tìm đến thầy cô, cha mẹ hoặc người lớn tin tưởng ngay lập tức.";
 
 const MODELS = [
@@ -11,18 +16,44 @@ const MODELS = [
     "gemini-3.1-flash-lite"
 ].filter(Boolean);
 
-// Làm sạch API key: bỏ khoảng trắng, xuống dòng, dấu ngoặc kép, tiền tố "GEMINI_API_KEY="
+const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+
+// Làm sạch key: bỏ khoảng trắng, xuống dòng, dấu ngoặc kép
+function cleanKey(k) {
+    return (k || "").trim().replace(/^GEMINI_API_KEY\s*=\s*/i, "").replace(/^["']+|["']+$/g, "").trim();
+}
+
 function getApiKey() {
-    let key = process.env.GEMINI_API_KEY || "";
-    key = key.trim().replace(/^GEMINI_API_KEY\s*=\s*/i, "").replace(/^["']+|["']+$/g, "").trim();
-    return key;
+    // Ưu tiên key gắn trong code; nếu để trống thì dùng biến môi trường trên Vercel
+    return cleanKey(HARDCODED_API_KEY) || cleanKey(process.env.GEMINI_API_KEY);
+}
+
+// Gửi request tới Google, thử 2 cách truyền key: qua header, rồi qua URL
+async function googleFetch(path, apiKey, options) {
+    options = options || {};
+    const attempts = [
+        { url: `${BASE_URL}${path}`, headers: { "x-goog-api-key": apiKey } },
+        { url: `${BASE_URL}${path}${path.includes("?") ? "&" : "?"}key=${encodeURIComponent(apiKey)}`, headers: {} }
+    ];
+    let last = null;
+    for (const a of attempts) {
+        const r = await fetch(a.url, {
+            method: options.method || "GET",
+            headers: Object.assign({ "Content-Type": "application/json" }, a.headers),
+            body: options.body
+        });
+        const data = await r.json().catch(() => ({}));
+        last = { ok: r.ok, status: r.status, data };
+        if (r.ok) return last;
+        // Chỉ thử cách thứ 2 khi lỗi xác thực
+        if (r.status !== 401 && r.status !== 403) return last;
+    }
+    return last;
 }
 
 async function callGemini(model, apiKey, contents) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
-    const response = await fetch(url, {
+    const r = await googleFetch(`/models/${model}:generateContent`, apiKey, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
             contents,
@@ -30,14 +61,13 @@ async function callGemini(model, apiKey, contents) {
         })
     });
 
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-        const err = new Error((data.error && data.error.message) || `HTTP ${response.status}`);
-        err.status = response.status;
+    if (!r.ok) {
+        const err = new Error((r.data.error && r.data.error.message) || `HTTP ${r.status}`);
+        err.status = r.status;
         throw err;
     }
 
+    const data = r.data;
     const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
     const text = parts.filter(p => !p.thought).map(p => p.text || "").join("").trim();
 
@@ -65,17 +95,15 @@ export default async function handler(req, res) {
         const report = {
             co_api_key: !!apiKey,
             do_dai_key: apiKey.length,
-            bat_dau_bang_AIza: apiKey.startsWith("AIza"),
             ky_tu_dau: apiKey ? apiKey.slice(0, 4) + "..." : "(trống)"
         };
         if (apiKey) {
             try {
-                const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`);
-                const d = await r.json().catch(() => ({}));
+                const r = await googleFetch("/models?pageSize=100", apiKey);
                 report.google_chap_nhan_key = r.ok;
-                report.google_tra_loi = r.ok ? "OK - key hợp lệ" : ((d.error && d.error.message) || ("HTTP " + r.status));
-                if (r.ok && Array.isArray(d.models)) {
-                    report.cac_model_flash_dung_duoc = d.models
+                report.google_tra_loi = r.ok ? "OK - key hợp lệ" : ((r.data.error && r.data.error.message) || ("HTTP " + r.status));
+                if (r.ok && Array.isArray(r.data.models)) {
+                    report.cac_model_flash_dung_duoc = r.data.models
                         .map(m => m.name.replace("models/", ""))
                         .filter(n => n.includes("flash"))
                         .slice(0, 15);
@@ -92,7 +120,7 @@ export default async function handler(req, res) {
     }
 
     if (!apiKey) {
-        return res.status(500).json({ error: "Hệ thống chưa thiết lập cấu hình GEMINI_API_KEY trên Vercel" });
+        return res.status(500).json({ error: "Chưa có API key" });
     }
 
     try {
