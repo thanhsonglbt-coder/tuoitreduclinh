@@ -2,7 +2,7 @@
 // API key lưu ở Vercel: Settings → Environment Variables → GROQ_API_KEY
 
 import {
-    detectKeywords, classifyAI, combineRisk, groqChat, REPLY_MODELS,
+    detectKeywords, getCustomLexicon, classifyAI, combineRisk, groqChat, REPLY_MODELS,
     logEvent, getKnowledge, getGroqKey, redisConfig, redis, setCors, readBody, cleanText
 } from "./_lib.js";
 
@@ -79,7 +79,7 @@ export default async function handler(req, res) {
         const previousUserMessages = cleanHistory.filter(m => m.role === "user").map(m => m.content);
 
         // LỚP 1: từ khóa (chạy ngay, không cần AI)
-        const l1 = detectKeywords(message);
+        const l1 = detectKeywords(message, 2, await getCustomLexicon());
 
         // LỚP 2 (AI phân loại) và câu trả lời chạy SONG SONG cho nhanh
         const knowledge = (await getKnowledge()).text;

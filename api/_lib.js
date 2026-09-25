@@ -96,12 +96,142 @@ const HYPERBOLE = [
     /\bcuoi chet\b/g
 ];
 
-export function detectKeywords(text) {
+/* ===== LỚP 1 – PHIÊN BẢN 2 (CẢI TIẾN SAU KIỂM THỬ "ĐÁNH LỪA") =====
+   Bổ sung so với phiên bản 1:
+   (a) Chữ viết tách từng ký tự: "m u ố n c h ế t" -> "muonchet"
+   (b) Emoji mang nghĩa: 💀 ☠️ ⚰️ -> "chet", 💔 -> "buon"
+   (c) Biến thể sai chính tả cần dấu: "tự tữ", "tự tủ", "tụ tử"
+   (d) Cụm tiếng Anh thường gặp
+   (e) Cụm ẩn ý (muốn ngủ mãi không dậy, mọi người nhẹ nhõm nếu không còn mình…)
+   (f) Phủ định: "không hề muốn chết", "không có ý định làm hại bản thân" -> chỉ tính mức 1
+   (g) Ngữ cảnh học tập: nói về nhân vật, tác phẩm, số liệu, thuyết trình -> tối đa mức 1,
+       trừ khi có ý muốn của chính người viết ("mình muốn", "em định"…) */
+export const LEXICON_V2_EXTRA = {
+    3: {
+        plain: [
+            "want to die", "wanna die", "kill myself", "end my life", "suicide", "suicidal",
+            "self harm", "hurt myself", "don t want to live", "dont want to live", "no reason to live",
+            "ngu mot giac that dai", "khong phai thuc day", "khong muon thuc day", "khong can thuc day",
+            "nhe nhom hon neu khong con minh", "neu khong con minh", "khi minh khong con",
+            "thu gui moi nguoi", "thu tu biet", "loi tu biet", "tam biet moi nguoi mai mai"
+        ],
+        accent: ["tự tữ", "tự tủ", "tụ tử", "tự sác"]
+    },
+    2: {
+        plain: [
+            "nobody cares", "no one cares", "hopeless", "worthless", "hate myself", "so alone",
+            "depressed", "tired of everything", "tired of life",
+            "chang thiet gi", "khong thiet gi", "met voi moi thu", "chan moi thu",
+            "cho het do", "het do quy", "do quy cua minh", "khong con ai", "het cuu"
+        ],
+        accent: []
+    },
+    1: {
+        plain: ["stressed", "stress", "anxious", "sad", "so tired", "lonely"],
+        accent: []
+    }
+};
+
+const EMOJI_MAP = [
+    [/[\u{1F480}☠⚰]️?/gu, " chet "],   // 💀 ☠️ ⚰️
+    [/\u{1F494}/gu, " buon "],                       // 💔
+    [/[\u{1F62D}\u{1F622}]/gu, " khoc "]             // 😭 😢
+];
+
+// Gộp các ký tự viết tách: "m u o n c h e t" -> "muonchet" (chỉ khi có >= 4 ký tự đơn liền nhau)
+function joinSpacedLetters(plain) {
+    const toks = plain.trim().split(" ");
+    const out = [];
+    let run = [];
+    const flush = () => {
+        if (run.length >= 4) out.push(run.join("")); else out.push(...run);
+        run = [];
+    };
+    for (const t of toks) {
+        if (/^[a-z]$/.test(t)) run.push(t); else { flush(); out.push(t); }
+    }
+    flush();
+    return " " + out.filter(Boolean).join(" ") + " ";
+}
+
+const NEGATION = /\b(khong|chua|chang|cha|ko) (he |bao gio |co y dinh |nghi den |muon |co y )*(muon chet|tu sat|tu lam hai|lam hai ban than|tu hai|chet)\b/g;
+const ACADEMIC = /\b(nhan vat|tac pham|truyen|bai van|van hoc|phan tich|thuyet trinh|so lieu|ti le|ty le|bao cao|nghien cuu|tim hieu|gdcd|bai hoc|tac gia|chi pheo|vo chong a phu)\b/;
+const OWN_INTENT = /\b(minh|em|tao|toi|tui|to|t) (muon|dinh|se|sap|chi muon|that su muon)\b/;
+
+function allLexicon(version, custom) {
+    if (version === 1) return LEXICON;
+    const merged = {};
+    for (const lv of [3, 2, 1]) {
+        const mine = (custom || []).filter(e => e.muc === lv);
+        merged[lv] = {
+            plain: LEXICON[lv].plain.concat(LEXICON_V2_EXTRA[lv].plain, mine.filter(e => !e.accent).map(e => e.norm)),
+            accent: LEXICON[lv].accent.concat(LEXICON_V2_EXTRA[lv].accent, mine.filter(e => e.accent).map(e => e.norm))
+        };
+    }
+    return merged;
+}
+
+/* ===== TỪ ĐIỂN TÙY CHỈNH (giáo viên thêm trên Trang giáo viên → tab "Từ điển") =====
+   Mỗi mục: { tu, norm, muc (0 = cụm loại trừ, 1–3 = mức nguy cơ), accent (chỉ khớp khi gõ có dấu), note, t }
+   Chỉ áp dụng cho bộ lọc phiên bản 2. Lưu trong cơ sở dữ liệu, tự nạp lại sau tối đa 60 giây. */
+let customCache = { t: 0, data: null };
+export function normalizeEntry(tu, accent) {
+    return (accent ? normalizeAccent(tu) : normalizePlain(tu)).trim();
+}
+export async function getCustomLexicon(force = false) {
+    if (!redisConfig()) return [];
+    if (!force && customCache.data && Date.now() - customCache.t < 60000) return customCache.data;
+    try {
+        const [vals] = await redis([["HVALS", "lexicon:custom"]]);
+        const entries = (vals || []).map(v => { try { return JSON.parse(v); } catch (e) { return null; } })
+            .filter(e => e && e.norm && e.muc >= 0 && e.muc <= 3);
+        customCache = { t: Date.now(), data: entries };
+        return entries;
+    } catch (e) {
+        console.error("Không đọc được từ điển tùy chỉnh:", e.message);
+        return customCache.data || [];
+    }
+}
+export function invalidateCustomLexicon() { customCache = { t: 0, data: null }; }
+
+// version: 2 = bản cải tiến (mặc định, dùng khi trò chuyện) · 1 = bản gốc (để so sánh trong báo cáo)
+export function detectKeywords(text, version = 2, custom = []) {
     const t0 = Date.now();
-    let plain = normalizePlain(text);
-    const accent = normalizeAccent(text);
+    const lex = allLexicon(version, custom);
+    let raw = String(text || "");
+    if (version >= 2) for (const [re, rep] of EMOJI_MAP) raw = raw.replace(re, rep);
+    let plain = normalizePlain(raw);
+    let accent = normalizeAccent(raw);
+    const excluded = [];
+    if (version >= 2) {
+        // Cụm loại trừ (mức 0) do giáo viên thêm: bỏ khỏi câu trước khi so khớp
+        for (const e of (custom || []).filter(x => x.muc === 0)) {
+            const key = " " + e.norm + " ";
+            if (e.accent ? accent.includes(key) : plain.includes(key)) {
+                excluded.push(e.tu);
+                if (e.accent) accent = accent.split(key).join(" "); else plain = plain.split(key).join(" ");
+            }
+        }
+    }
     const matches = [];
-    let hyperbole = false;
+    let hyperbole = false, negated = false, academic = false;
+
+    if (version >= 2) {
+        const joined = joinSpacedLetters(plain);
+        if (joined !== plain) {
+            // So khớp thêm dạng viết liền của từ khóa (bỏ khoảng trắng)
+            for (const lv of [3, 2]) {
+                for (const k of lex[lv].plain) {
+                    const compact = k.replace(/ /g, "");
+                    if (compact.length >= 6 && joined.includes(" " + compact + " ")) {
+                        matches.push({ tu: k + " (viết tách)", muc: lv });
+                    }
+                }
+            }
+        }
+        if (NEGATION.test(plain)) { negated = true; plain = plain.replace(NEGATION, " "); }
+        NEGATION.lastIndex = 0;
+    }
 
     for (const re of HYPERBOLE) {
         if (re.test(plain)) {
@@ -111,20 +241,33 @@ export function detectKeywords(text) {
         re.lastIndex = 0;
     }
 
-    let level = 0;
+    let level = matches.reduce((m, x) => Math.max(m, x.muc), 0);
     for (const lv of [3, 2, 1]) {
-        for (const k of LEXICON[lv].plain) {
+        for (const k of lex[lv].plain) {
             if (plain.includes(" " + k + " ")) { matches.push({ tu: k, muc: lv }); if (lv > level) level = lv; }
         }
-        for (const k of LEXICON[lv].accent) {
+        for (const k of lex[lv].accent) {
             if (accent.includes(" " + k + " ")) { matches.push({ tu: k, muc: lv }); if (lv > level) level = lv; }
+        }
+    }
+
+    if (version >= 2) {
+        if (negated) {
+            matches.push({ tu: "(câu phủ định – chỉ tính mức 1)", muc: 1 });
+            if (level < 1) level = 1;
+        }
+        if (level >= 2 && ACADEMIC.test(plain) && !OWN_INTENT.test(plain)) {
+            academic = true;
+            level = 1;
+            matches.push({ tu: "(ngữ cảnh học tập – hạ xuống mức 1)", muc: 1 });
         }
     }
     if (hyperbole) {
         // Chỉ ghi chú, KHÔNG nâng mức: câu cường điệu được coi là bình thường ở lớp 1
         matches.push({ tu: "(câu cường điệu – đã bỏ qua)", muc: 0 });
     }
-    return { level, matches, hyperbole, ms: Date.now() - t0 };
+    for (const x of excluded) matches.push({ tu: "(loại trừ: " + x + ")", muc: 0 });
+    return { level, matches, hyperbole, negated, academic, version, ms: Date.now() - t0 };
 }
 
 /* =====================================================================

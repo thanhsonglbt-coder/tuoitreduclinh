@@ -4,8 +4,14 @@
 import crypto from "crypto";
 import {
     redis, redisConfig, hashToObject, weekInfo, setCors, readBody, cleanText,
-    detectKeywords, classifyAI, combineRisk, getKnowledge, DEFAULT_KNOWLEDGE, TOPICS
+    detectKeywords, classifyAI, combineRisk, getKnowledge, DEFAULT_KNOWLEDGE, TOPICS,
+    LEXICON, LEXICON_V2_EXTRA, getCustomLexicon, invalidateCustomLexicon, normalizeEntry
 } from "./_lib.js";
+
+const MAX_ITEMS = 2000;   // số dòng tối đa của một bộ dữ liệu
+const MAX_RUNS = 60;      // số lần kiểm thử được lưu
+const newId = () => crypto.randomBytes(5).toString("hex");
+const parseAll = vals => (vals || []).map(v => { try { return JSON.parse(v); } catch (e) { return null; } }).filter(Boolean);
 
 const STATUSES = ["moi", "da_hen", "da_gap", "huy"];
 
@@ -192,16 +198,137 @@ export default async function handler(req, res) {
         if (action === "classify") {
             const message = cleanText(body.message, 2000);
             if (!message) return res.status(400).json({ error: "Câu trống" });
-            const l1 = detectKeywords(message);
+            // context: các tin nhắn trước trong cùng kịch bản hội thoại (dùng cho tab "Tối ưu tham số")
+            const context = Array.isArray(body.context) ? body.context.slice(-4).map(x => cleanText(x, 2000)).filter(Boolean) : [];
+            const l1 = detectKeywords(message, 2, await getCustomLexicon());
+            const l1v1 = detectKeywords(message, 1); // bản gốc, để so sánh trước/sau cải tiến
             let l2 = null, l2Error = null;
-            try { l2 = await classifyAI(message, []); } catch (e) { l2Error = e.message; }
+            try { l2 = await classifyAI(message, context); } catch (e) { l2Error = e.message; }
             const combined = combineRisk(l1.level, l2 ? l2.level : null, 0);
             return res.status(200).json({
                 l1: { level: l1.level, matches: l1.matches, ms: l1.ms },
+                l1v1: { level: l1v1.level, matches: l1v1.matches },
                 l2: l2 ? { level: l2.level, topic: l2.topic, reason: l2.reason, model: l2.model, ms: l2.ms } : null,
                 l2Error,
                 combined: combined.messageLevel
             });
+        }
+
+        /* ===== KHO BỘ DỮ LIỆU KIỂM THỬ =====
+           type "cau": mỗi dòng {text, label 0–3, group} · type "kichban": mỗi dòng {text "tin 1 >> tin 2", label 0/1} */
+        if (action === "datasets_list") {
+            needDb();
+            const [vals] = await redis([["HVALS", "datasets"]]);
+            const list = parseAll(vals).map(d => ({ id: d.id, name: d.name, type: d.type, desc: d.desc || "", count: (d.items || []).length, updatedAt: d.updatedAt }))
+                .sort((a, b) => b.updatedAt - a.updatedAt);
+            return res.status(200).json({ datasets: list });
+        }
+        if (action === "dataset_get") {
+            needDb();
+            const [raw] = await redis([["HGET", "datasets", cleanText(q.id || body.id, 20)]]);
+            if (!raw) return res.status(404).json({ error: "Không tìm thấy bộ dữ liệu" });
+            return res.status(200).json({ dataset: JSON.parse(raw) });
+        }
+        if (action === "dataset_save") {
+            needDb();
+            const type = body.type === "kichban" ? "kichban" : "cau";
+            const name = cleanText(body.name, 80);
+            if (!name) return res.status(400).json({ error: "Bộ dữ liệu cần có tên" });
+            const items = (Array.isArray(body.items) ? body.items : []).slice(0, MAX_ITEMS).map(it => {
+                const text = cleanText(it && it.text, type === "kichban" ? 3000 : 1000);
+                let label = parseInt(it && it.label, 10);
+                if (!(label >= 0 && label <= (type === "kichban" ? 1 : 3))) label = null;
+                return { text, label, group: cleanText(it && it.group, 60) };
+            }).filter(it => it.text);
+            const id = /^[a-f0-9]{10}$/.test(String(body.id || "")) ? body.id : newId();
+            const record = { id, name, type, desc: cleanText(body.desc, 300), items, updatedAt: Date.now() };
+            await redis([["HSET", "datasets", id, JSON.stringify(record)]]);
+            return res.status(200).json({ ok: true, id, count: items.length });
+        }
+        if (action === "dataset_delete") {
+            needDb();
+            await redis([["HDEL", "datasets", cleanText(body.id, 20)]]);
+            return res.status(200).json({ ok: true });
+        }
+
+        /* ===== LỊCH SỬ KẾT QUẢ KIỂM THỬ ===== */
+        if (action === "runs_list") {
+            needDb();
+            const [vals] = await redis([["HVALS", "runs"]]);
+            const list = parseAll(vals).map(r => { const c = Object.assign({}, r); delete c.rows; return c; }).sort((a, b) => b.t - a.t);
+            return res.status(200).json({ runs: list });
+        }
+        if (action === "run_get") {
+            needDb();
+            const [raw] = await redis([["HGET", "runs", cleanText(q.id || body.id, 20)]]);
+            if (!raw) return res.status(404).json({ error: "Không tìm thấy kết quả" });
+            return res.status(200).json({ run: JSON.parse(raw) });
+        }
+        if (action === "run_save") {
+            needDb();
+            const run = body.run || {};
+            const record = {
+                id: newId(), t: Date.now(),
+                kind: run.kind === "tune" ? "tune" : "test",
+                dataset: cleanText(run.dataset, 80) || "(dán trực tiếp)",
+                n: Number(run.n) || 0,
+                models: (Array.isArray(run.models) ? run.models : []).slice(0, 6).map(m => cleanText(m, 60)),
+                note: cleanText(run.note, 300),
+                summary: run.summary || {},
+                rows: Array.isArray(run.rows) ? run.rows.slice(0, MAX_ITEMS) : []
+            };
+            let json = JSON.stringify(record);
+            if (json.length > 800000) { record.rows = []; record.rowsDropped = true; json = JSON.stringify(record); }
+            await redis([["HSET", "runs", record.id, json]]);
+            // Giữ tối đa MAX_RUNS lần gần nhất
+            const [vals] = await redis([["HVALS", "runs"]]);
+            const all = parseAll(vals).sort((a, b) => b.t - a.t);
+            if (all.length > MAX_RUNS) await redis(all.slice(MAX_RUNS).map(r => ["HDEL", "runs", r.id]));
+            return res.status(200).json({ ok: true, id: record.id });
+        }
+        if (action === "run_delete") {
+            needDb();
+            await redis([["HDEL", "runs", cleanText(body.id, 20)]]);
+            return res.status(200).json({ ok: true });
+        }
+
+        /* ===== TỪ ĐIỂN TÙY CHỈNH ===== */
+        if (action === "lexicon_get") {
+            const custom = await getCustomLexicon(true);
+            const builtin = [3, 2, 1].map(lv => ({
+                muc: lv,
+                v1: LEXICON[lv].plain.concat(LEXICON[lv].accent),
+                v2: LEXICON_V2_EXTRA[lv].plain.concat(LEXICON_V2_EXTRA[lv].accent)
+            }));
+            return res.status(200).json({ builtin, custom: custom.sort((a, b) => b.t - a.t) });
+        }
+        if (action === "lexicon_add") {
+            needDb();
+            const tu = cleanText(body.tu, 80);
+            const muc = parseInt(body.muc, 10);
+            const accent = !!body.accent;
+            if (!tu) return res.status(400).json({ error: "Chưa nhập từ hoặc cụm từ" });
+            if (!(muc >= 0 && muc <= 3)) return res.status(400).json({ error: "Mức phải từ 0 đến 3" });
+            const norm = normalizeEntry(tu, accent);
+            if (norm.replace(/\s/g, "").length < 2) return res.status(400).json({ error: "Từ khóa quá ngắn, dễ báo nhầm" });
+            const field = (accent ? "a:" : "p:") + norm;
+            await redis([["HSET", "lexicon:custom", field, JSON.stringify({ field, tu, norm, muc, accent, note: cleanText(body.note, 200), t: Date.now() })]]);
+            invalidateCustomLexicon();
+            return res.status(200).json({ ok: true, norm });
+        }
+        if (action === "lexicon_delete") {
+            needDb();
+            await redis([["HDEL", "lexicon:custom", cleanText(body.field, 200)]]);
+            invalidateCustomLexicon();
+            return res.status(200).json({ ok: true });
+        }
+        // Thử nhanh bộ lọc lớp 1 (không gọi AI)
+        if (action === "l1_test") {
+            const message = cleanText(body.message, 2000);
+            if (!message) return res.status(400).json({ error: "Câu trống" });
+            const v2 = detectKeywords(message, 2, await getCustomLexicon(true));
+            const v1 = detectKeywords(message, 1);
+            return res.status(200).json({ v1: { level: v1.level, matches: v1.matches }, v2: { level: v2.level, matches: v2.matches } });
         }
 
         return res.status(400).json({ error: "Thao tác không hợp lệ" });
