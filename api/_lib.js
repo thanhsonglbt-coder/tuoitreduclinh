@@ -292,4 +292,104 @@ export function hashToObject(arr) {
 const DAY = 86400000;
 export function weekInfo(ms = Date.now()) {
     const d = new Date(ms + 7 * 3600000); // đổi sang giờ Việt Nam, dùng hàm UTC
-    const dow = (d.getUTCDay() + 6) %
+    const dow = (d.getUTCDay() + 6) % 7;  // thứ Hai = 0
+    const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - dow));
+    const thursday = new Date(monday.getTime() + 3 * DAY);
+    const year = thursday.getUTCFullYear();
+    const jan4 = new Date(Date.UTC(year, 0, 4));
+    const week1Monday = new Date(jan4.getTime() - ((jan4.getUTCDay() + 6) % 7) * DAY);
+    const week = 1 + Math.round((monday - week1Monday) / (7 * DAY));
+    const dd = x => String(x).padStart(2, "0");
+    return {
+        key: `${year}-W${dd(week)}`,
+        label: `${dd(monday.getUTCDate())}/${dd(monday.getUTCMonth() + 1)}`
+    };
+}
+
+const TTL = String(400 * 86400); // giữ thống kê ~13 tháng
+
+// Ghi thống kê ẩn danh: chỉ chủ đề, mức nguy cơ, mã cuộc trò chuyện ngẫu nhiên. KHÔNG lưu nội dung tin nhắn.
+export async function logEvent({ cid, level, topic, source }) {
+    if (!redisConfig()) return;
+    const wk = weekInfo().key;
+    const safeCid = String(cid || "unknown").replace(/[^a-zA-Z0-9-]/g, "").slice(0, 40) || "unknown";
+    const cmds = [
+        ["HINCRBY", `stats:${wk}:topic`, topic, 1],
+        ["HINCRBY", `stats:${wk}:level`, level, 1],
+        ["SADD", `stats:${wk}:conv`, safeCid],
+        ["EXPIRE", `stats:${wk}:topic`, TTL],
+        ["EXPIRE", `stats:${wk}:level`, TTL],
+        ["EXPIRE", `stats:${wk}:conv`, TTL]
+    ];
+    if (level >= 2) {
+        cmds.push(["SADD", `stats:${wk}:flag`, safeCid]);
+        cmds.push(["EXPIRE", `stats:${wk}:flag`, TTL]);
+        cmds.push(["LPUSH", "alerts", JSON.stringify({ t: Date.now(), level, topic, source, cid: safeCid.slice(0, 6) })]);
+        cmds.push(["LTRIM", "alerts", 0, 299]);
+    }
+    await redis(cmds);
+}
+
+/* =====================================================================
+   PHẦN 7. KIẾN THỨC RIÊNG CỦA TRƯỜNG
+   Giáo viên sửa trong Trang giáo viên → "Kiến thức trường" (lưu vào cơ sở dữ liệu).
+   Nội dung dưới đây là MẪU BAN ĐẦU khi chưa cập nhật.
+   ===================================================================== */
+export const DEFAULT_KNOWLEDGE = `TRƯỜNG THPT ĐỨC LINH – THÔNG TIN DÀNH CHO HỌC SINH
+
+1. LỊCH THI / KIỂM TRA
+- Kiểm tra giữa học kỳ I: [chưa cập nhật]
+- Kiểm tra cuối học kỳ I: [chưa cập nhật]
+- Kiểm tra giữa học kỳ II: [chưa cập nhật]
+- Kiểm tra cuối học kỳ II: [chưa cập nhật]
+
+2. NỘI QUY CƠ BẢN
+- [chưa cập nhật]
+
+3. PHÒNG TƯ VẤN TÂM LÝ HỌC ĐƯỜNG
+- Địa điểm, giờ làm việc: [chưa cập nhật]
+- Học sinh có thể đặt lịch gặp thầy cô tư vấn ẨN DANH ngay trên trang web bằng nút "Đặt lịch gặp thầy cô tư vấn". Hệ thống cấp một mã hẹn để tra cứu phản hồi.
+
+4. MẸO HỌC TẬP
+- Pomodoro: học tập trung 25 phút, nghỉ 5 phút; sau 4 lượt nghỉ dài 15–30 phút.
+- Ôn tập ngắt quãng: ôn lại bài sau 1 ngày, 3 ngày, 1 tuần thay vì học dồn một lần.
+- Tự kiểm tra: làm đề, tự giải thích lại bài bằng lời của mình thay vì chỉ đọc lại.
+- Ngủ đủ giấc (khuyến nghị 8–10 tiếng mỗi đêm cho tuổi 13–18), hạn chế dùng điện thoại trước khi ngủ.
+- Trước kỳ thi: lập kế hoạch ôn theo tuần, ưu tiên phần còn yếu, giữ sức khỏe.
+
+5. KHI CẦN HỖ TRỢ KHẨN CẤP
+- Tổng đài Quốc gia Bảo vệ Trẻ em: 111 (miễn phí, 24/7)
+- Cấp cứu: 115
+- Báo ngay cho giáo viên chủ nhiệm, thầy cô tư vấn hoặc cha mẹ.`;
+
+export async function getKnowledge() {
+    if (!redisConfig()) return { text: DEFAULT_KNOWLEDGE, isDefault: true };
+    try {
+        const [v] = await redis([["GET", "kb:school"]]);
+        if (v && String(v).trim()) return { text: String(v), isDefault: false };
+    } catch (e) {
+        console.error("Không đọc được kiến thức trường:", e.message);
+    }
+    return { text: DEFAULT_KNOWLEDGE, isDefault: true };
+}
+
+/* =====================================================================
+   PHẦN 8. TIỆN ÍCH CHO API
+   ===================================================================== */
+export function setCors(res) {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Teacher-Password");
+}
+
+export function readBody(req) {
+    let body = req.body;
+    if (typeof body === "string") {
+        try { body = JSON.parse(body); } catch (e) { body = {}; }
+    }
+    return body || {};
+}
+
+export function cleanText(v, max) {
+    return String(v === undefined || v === null ? "" : v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim().slice(0, max);
+}
