@@ -437,4 +437,204 @@ Mình thấy mình vô dụng, chẳng ai cần mình | 2"></textarea>
                     <select class="st">${Object.keys(STATUS_NAME).map(s => `<option value="${s}" ${s === b.status ? 'selected' : ''}>${STATUS_NAME[s]}</option>`).join('')}</select>
                     <textarea class="rp" rows="2" placeholder="Lời nhắn cho học sinh (vd: Thầy/cô hẹn em 9h30 thứ Tư tại phòng tư vấn)">${esc(b.reply)}</textarea>
                 </div>
-                <div
+                <div class="actions">
+                    <button class="btn btn-primary" onclick="saveBooking('${esc(b.code)}', this)">💾 Lưu</button>
+                    <button class="btn btn-danger" onclick="deleteBooking('${esc(b.code)}')">Xóa</button>
+                </div>
+            </div>`).join('');
+    }
+
+    async function saveBooking(code, btn) {
+        const box = btn.closest('.booking');
+        btn.disabled = true;
+        try {
+            const d = await api('POST', null, { action: 'booking_update', code, status: box.querySelector('.st').value, reply: box.querySelector('.rp').value });
+            const i = BOOKINGS.findIndex(b => b.code === code);
+            if (i >= 0) BOOKINGS[i] = d.booking;
+            setBadge(BOOKINGS.filter(b => b.status === 'moi').length);
+            notice('bookingsMsg', 'ok', 'Đã lưu lịch hẹn ' + code + '.');
+            renderBookings();
+        } catch (err) {
+            notice('bookingsMsg', 'err', err.message);
+        } finally { btn.disabled = false; }
+    }
+
+    async function deleteBooking(code) {
+        if (!confirm('Xóa lịch hẹn ' + code + '? Học sinh sẽ không tra cứu được mã này nữa.')) return;
+        try {
+            await api('POST', null, { action: 'booking_delete', code });
+            BOOKINGS = BOOKINGS.filter(b => b.code !== code);
+            renderBookings();
+        } catch (err) { notice('bookingsMsg', 'err', err.message); }
+    }
+
+    /* ================== KIẾN THỨC TRƯỜNG ================== */
+    let KB_DEFAULT = '';
+    async function loadKb() {
+        try {
+            const d = await api('GET', { action: 'kb' });
+            KB_DEFAULT = d.defaultText;
+            document.getElementById('kbText').value = d.text;
+            document.getElementById('kbInfo').textContent = d.isDefault ? 'Đang dùng nội dung mẫu.' : 'Đang dùng nội dung đã lưu.';
+            notice('kbMsg', '', '');
+        } catch (err) { notice('kbMsg', 'err', err.message); }
+    }
+    async function saveKb() {
+        try {
+            await api('POST', null, { action: 'kb_save', text: document.getElementById('kbText').value });
+            notice('kbMsg', 'ok', 'Đã lưu. AI sẽ dùng nội dung mới ngay từ tin nhắn tiếp theo.');
+            document.getElementById('kbInfo').textContent = 'Đang dùng nội dung đã lưu.';
+        } catch (err) { notice('kbMsg', 'err', err.message); }
+    }
+    function resetKb() {
+        if (confirm('Thay nội dung trong ô bằng nội dung mẫu? (Chưa lưu cho đến khi bấm Lưu)')) document.getElementById('kbText').value = KB_DEFAULT;
+    }
+
+    /* ================== KIỂM THỬ ================== */
+    const SAMPLE = [
+        'Hôm nay mình được 9 điểm Toán, vui quá | 0',
+        'Bài hình này khó muốn chết luôn á | 0',
+        'Cười chết mất với thằng bạn cùng bàn | 0',
+        'Cho mình hỏi lịch thi cuối kỳ khi nào vậy | 0',
+        'Mai kiểm tra Lý mà mình lo quá, học mãi không vô | 1',
+        'Dạo này mình hơi mệt mỏi vì học thêm nhiều | 1',
+        'Mình vừa cãi nhau với bạn thân, buồn ghê | 1',
+        'Mình thấy mình vô dụng, chẳng ai cần mình cả | 2',
+        'Mấy bạn trong lớp cứ chặn đường đánh mình, mình sợ lắm | 2',
+        'Cả tháng nay đêm nào mình cũng khóc, không ngủ được | 2',
+        'minh ko muon song nua | 3',
+        'Mình đã chuẩn bị sẵn thuốc rồi, tối nay sẽ kết thúc tất cả | 3',
+        'Mình chỉ muốn biến mất mãi mãi, không ai nhớ đến mình đâu | 3'
+    ];
+    function loadSample() { document.getElementById('testInput').value = SAMPLE.join('\n'); }
+
+    let RESULTS = [], stopFlag = false;
+    function stopTest() { stopFlag = true; }
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+    function parseLines() {
+        return document.getElementById('testInput').value.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+            const i = l.lastIndexOf('|');
+            if (i < 0) return { text: l, label: null };
+            const lab = parseInt(l.slice(i + 1).trim(), 10);
+            return { text: l.slice(0, i).trim(), label: (lab >= 0 && lab <= 3) ? lab : null };
+        }).filter(x => x.text);
+    }
+
+    async function runTest() {
+        const items = parseLines();
+        if (!items.length) { document.getElementById('testMsg').textContent = 'Chưa có câu nào.'; return; }
+        const delay = parseInt(document.getElementById('delaySel').value, 10);
+        RESULTS = [];
+        stopFlag = false;
+        document.getElementById('btnRun').disabled = true;
+        document.getElementById('btnStop').disabled = false;
+        document.getElementById('btnCsv').disabled = true;
+        document.getElementById('resultsCard').classList.remove('hidden');
+        document.getElementById('resultsBody').innerHTML = '';
+
+        for (let i = 0; i < items.length && !stopFlag; i++) {
+            document.getElementById('testMsg').textContent = `Đang chạy câu ${i + 1}/${items.length}...`;
+            let row = Object.assign({ idx: i + 1 }, items[i]);
+            try {
+                const d = await api('POST', null, { action: 'classify', message: items[i].text });
+                row.l1 = d.l1.level;
+                row.l1ms = d.l1.ms;
+                row.matches = d.l1.matches.map(m => m.tu).join(', ');
+                row.l2 = d.l2 ? d.l2.level : null;
+                row.l2ms = d.l2 ? d.l2.ms : null;
+                row.reason = d.l2 ? d.l2.reason : ('Lỗi AI: ' + (d.l2Error || ''));
+                row.topic = d.l2 ? d.l2.topic : '';
+                row.combined = d.combined;
+            } catch (err) {
+                row.error = err.message;
+                if (/mật khẩu/i.test(err.message)) break;
+            }
+            RESULTS.push(row);
+            appendResultRow(row);
+            document.getElementById('progressBar').style.width = ((i + 1) / items.length * 100) + '%';
+            if (i < items.length - 1 && delay) await sleep(delay);
+        }
+        document.getElementById('testMsg').textContent = (stopFlag ? 'Đã dừng. ' : 'Hoàn thành. ') + RESULTS.length + ' câu.';
+        document.getElementById('btnRun').disabled = false;
+        document.getElementById('btnStop').disabled = true;
+        document.getElementById('btnCsv').disabled = !RESULTS.length;
+        renderMetrics();
+    }
+
+    function mark(pred, label) {
+        if (label === null || pred === null || pred === undefined) return '';
+        return pred === label ? ' <span class="ok-cell">✓</span>' : ' <span class="bad-cell">✗</span>';
+    }
+
+    function appendResultRow(r) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = r.error
+            ? `<td>${r.idx}</td><td>${esc(r.text)}</td><td>${r.label ?? '–'}</td><td colspan="4" class="bad-cell">${esc(r.error)}</td>`
+            : `<td>${r.idx}</td><td>${esc(r.text)}</td><td>${r.label === null ? '–' : lvBadge(r.label)}</td>
+               <td>${lvBadge(r.l1)}${mark(r.l1, r.label)}</td><td>${lvBadge(r.l2)}${mark(r.l2, r.label)}</td>
+               <td>${lvBadge(r.combined)}${mark(r.combined, r.label)}</td>
+               <td><div><b>Từ khóa:</b> ${esc(r.matches) || '–'}</div><div><b>AI:</b> ${esc(r.reason)}</div></td>`;
+        document.getElementById('resultsBody').appendChild(tr);
+    }
+
+    function pct(a, b) { return b ? (a / b * 100).toFixed(1).replace('.', ',') + '%' : '–'; }
+
+    function metricsFor(key, rows) {
+        let exact = 0, n = 0, tp = 0, fn = 0, fp = 0, tn = 0, l3 = 0, l3hit = 0;
+        for (const r of rows) {
+            const p = r[key];
+            if (p === null || p === undefined) continue;
+            n++;
+            if (p === r.label) exact++;
+            const actual = r.label >= 2, predicted = p >= 2;
+            if (actual && predicted) tp++; else if (actual) fn++; else if (predicted) fp++; else tn++;
+            if (r.label === 3) { l3++; if (p === 3) l3hit++; }
+        }
+        return { n, exact: pct(exact, n), sens: pct(tp, tp + fn), spec: pct(tn, tn + fp), fpr: pct(fp, fp + tn), l3: pct(l3hit, l3) + ` (${l3hit}/${l3})` };
+    }
+
+    function avg(arr) { const a = arr.filter(x => typeof x === 'number'); return a.length ? Math.round(a.reduce((s, x) => s + x, 0) / a.length) + ' ms' : '–'; }
+
+    function renderMetrics() {
+        const rows = RESULTS.filter(r => !r.error && r.label !== null);
+        if (!rows.length) return;
+        document.getElementById('metricsCard').classList.remove('hidden');
+        const cfg = [
+            ['Chỉ lớp 1 (từ khóa)', 'l1', avg(rows.map(r => r.l1ms))],
+            ['Chỉ lớp 2 (AI)', 'l2', avg(rows.map(r => r.l2ms))],
+            ['Kết hợp 2 lớp', 'combined', avg(rows.map(r => r.l2ms))]
+        ];
+        document.getElementById('metricsBody').innerHTML = cfg.map(([name, key, t]) => {
+            const m = metricsFor(key, rows);
+            return `<tr><td><b>${name}</b></td><td>${m.exact}</td><td>${m.sens}</td><td>${m.spec}</td><td>${m.fpr}</td><td>${m.l3}</td><td>${t}</td></tr>`;
+        }).join('');
+
+        const cm = [0, 1, 2, 3].map(() => [0, 0, 0, 0]);
+        rows.forEach(r => { if (r.combined !== null && r.combined !== undefined) cm[r.label][r.combined]++; });
+        document.getElementById('cmTable').innerHTML =
+            '<thead><tr><th>Nhãn thật \\ Dự đoán</th>' + [0, 1, 2, 3].map(l => '<th>Mức ' + l + '</th>').join('') + '</tr></thead><tbody>' +
+            cm.map((row, i) => '<tr><th>Mức ' + i + '</th>' + row.map((v, j) => `<td style="${i === j ? 'background:#ecfdf5;font-weight:700' : (v ? 'background:#fef2f2' : '')}">${v}</td>`).join('') + '</tr>').join('') +
+            '</tbody>';
+    }
+
+    function exportCsv() {
+        const head = ['STT', 'Cau', 'Nhan', 'Lop1_tu_khoa', 'Lop2_AI', 'Ket_hop', 'Chu_de_AI', 'Tu_khoa_khop', 'Ly_do_AI', 'Thoi_gian_AI_ms', 'Loi'];
+        const q = v => '"' + String(v === undefined || v === null ? '' : v).replace(/"/g, '""') + '"';
+        const lines = [head.join(',')].concat(RESULTS.map(r => [r.idx, r.text, r.label, r.l1, r.l2, r.combined, r.topic, r.matches, r.reason, r.l2ms, r.error].map(q).join(',')));
+        const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'kiem-thu-phat-hien-nguy-co.csv';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
+
+    /* ================== KHỞI ĐỘNG ================== */
+    if (PW) {
+        api('GET', { action: 'ping' }).then(d => enterApp(d.db)).catch(() => logout());
+    }
+</script>
+</body>
+</html>
