@@ -6,12 +6,12 @@
     <title>Bạn Đồng Hành - Trợ Lý AI Tư Vấn Tâm Lý Học Đường</title>
     <style>
         :root {
-            --soft-blue: #e0f2fe;    
-            --primary-blue: #0284c7; 
-            --dark-blue: #0c4a6e;    
-            --mint: #f0fdf4;         
-            --text-dark: #1e293b;    
-            --text-muted: #64748b;   
+            --soft-blue: #e0f2fe;
+            --primary-blue: #0284c7;
+            --dark-blue: #0c4a6e;
+            --mint: #f0fdf4;
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
             --white: #ffffff;
         }
 
@@ -169,6 +169,8 @@
             padding: 12px 16px;
             border-radius: 12px;
             font-size: 14.5px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
 
         .msg.bot {
@@ -189,6 +191,12 @@
             background-color: #e2e8f0;
             color: var(--text-muted);
             font-style: italic;
+            align-self: flex-start;
+        }
+
+        .msg.error {
+            background-color: #fee2e2;
+            color: #991b1b;
             align-self: flex-start;
         }
 
@@ -222,6 +230,11 @@
 
         .btn-send:hover {
             background-color: var(--dark-blue);
+        }
+
+        .btn-send:disabled {
+            background-color: #94a3b8;
+            cursor: not-allowed;
         }
 
         .features {
@@ -271,6 +284,10 @@
             font-weight: 700;
         }
 
+        .crisis-line a {
+            color: var(--white);
+        }
+
         @media (max-width: 768px) {
             .grid-layout { grid-template-columns: 1fr; }
             .intro-text { text-align: center; }
@@ -280,19 +297,18 @@
 </head>
 <body>
 
-    <!-- THANH MENU -->
     <header>
         <div class="container">
             <nav>
                 <a href="#" class="logo">🤝 Bạn Đồng Hành</a>
                 <ul class="nav-links">
                     <li><a href="#tinhnang">Tính Năng</a></li>
+                    <li><a href="#hotline">Hỗ Trợ Khẩn Cấp</a></li>
                 </ul>
             </nav>
         </div>
     </header>
 
-    <!-- BANNER CHÍNH TÍCH HỢP CHAT -->
     <section class="hero-section">
         <div class="container grid-layout">
             <div class="intro-text">
@@ -301,7 +317,6 @@
                 <p>Không gian an toàn, không phán xét. Trợ lý AI lắng nghe áp lực học tập, thi cử và những tâm tư khó nói của học sinh 24/7.</p>
             </div>
 
-            <!-- GIAO DIỆN KHUNG CHAT INTERACTIVE -->
             <div class="chat-box">
                 <div class="chat-header">
                     <div class="bot-avatar">🤖</div>
@@ -313,34 +328,114 @@
                 <div class="chat-messages" id="chatMessages">
                     <div class="msg bot">Chào bạn! Mình là Bạn Đồng Hành. Hôm nay trường lớp hoặc cuộc sống của bạn có điều gì làm bạn áp lực hay mệt mỏi không? Hãy chia sẻ với mình nhé! 😊</div>
                 </div>
-                <form class="chat-input-area" onsubmit="sendMessage(event)">
+                <form class="chat-input-area" id="chatForm">
                     <input type="text" id="userInput" placeholder="Nhập tâm sự của bạn tại đây..." required autocomplete="off">
-                    <button type="submit" class="btn-send">Gửi</button>
+                    <button type="submit" class="btn-send" id="btnSend">Gửi</button>
                 </form>
             </div>
         </div>
     </section>
 
-    <!-- KHỐI TÍNH NĂNG -->
-    <section id="tinhnang" class="features container">
-        <div class="section-title">
-            <h2>Hệ thống hỗ trợ tâm lý toàn diện</h2>
-        </div>
-        <div class="feature-grid">
-            <div class="feature-card">
-                <h3>⏰ Luôn có mặt 24/7</h3>
-                <p>Áp lực thường đến vào ban đêm hoặc trước kỳ thi. Trợ lý AI luôn sẵn sàng trò chuyện bất cứ khi nào bạn cần mà không cần đặt lịch.</p>
-            </div>
-            <div class="feature-card">
-                <h3>💬 Không Phán Xét</h3>
-                <p>Bạn tự do thể hiện cảm xúc, lo âu, hay thất vọng mà không sợ bị đánh giá hay so sánh với bất kỳ ai.</p>
-            </div>
-            <div class="feature-card">
-                <h3>🛠️ Bài Tập Sơ Cứu Cảm Xúc</h3>
-                <p>AI hướng dẫn bạn các bài tập điều hòa nhịp thở, chánh niệm và viết nhật ký giải tỏa stress tức thì.</p>
+    <section class="features" id="tinhnang">
+        <div class="container">
+            <h2 class="section-title">Bạn Đồng Hành có thể giúp gì cho bạn?</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>📚 Áp lực học tập &amp; thi cử</h3>
+                    <p>Chia sẻ những lo lắng về điểm số, kỳ thi, kỳ vọng của gia đình và cùng tìm cách sắp xếp lại suy nghĩ.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>👫 Bạn bè &amp; các mối quan hệ</h3>
+                    <p>Lắng nghe những mâu thuẫn, hiểu lầm với bạn bè, thầy cô hay gia đình một cách nhẹ nhàng, không phán xét.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🌙 Luôn sẵn sàng 24/7</h3>
+                    <p>Bất cứ lúc nào bạn cần một người để tâm sự, Bạn Đồng Hành luôn ở đây. Cuộc trò chuyện không được lưu lại.</p>
+                </div>
             </div>
         </div>
     </section>
 
-    <footer>
+    <footer id="hotline">
         <div class="container">
+            <div class="crisis-line">🆘 Nếu bạn đang gặp nguy hiểm hoặc có ý định làm hại bản thân: gọi ngay <a href="tel:111">111</a> (Tổng đài Quốc gia Bảo vệ Trẻ em, miễn phí 24/7) hoặc <a href="tel:115">115</a> (Cấp cứu)</div>
+            <p>Bạn Đồng Hành là trợ lý AI hỗ trợ lắng nghe, không thay thế chuyên gia tâm lý. Hãy tìm đến thầy cô, cha mẹ hoặc người bạn tin tưởng khi cần.</p>
+            <p style="margin-top:10px;">© 2026 Bạn Đồng Hành</p>
+        </div>
+    </footer>
+
+    <script>
+        let chatHistory = [];
+        const MAX_HISTORY = 20; // giữ tối đa 20 lượt gần nhất để gửi kèm
+
+        const form = document.getElementById('chatForm');
+        const input = document.getElementById('userInput');
+        const btnSend = document.getElementById('btnSend');
+        const messagesContainer = document.getElementById('chatMessages');
+
+        function addMessage(text, type) {
+            const div = document.createElement('div');
+            div.className = 'msg ' + type;
+            div.innerText = text;
+            messagesContainer.appendChild(div);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            return div;
+        }
+
+        form.addEventListener('submit', sendMessage);
+
+        async function sendMessage(event) {
+            event.preventDefault();
+            const userText = input.value.trim();
+            if (!userText) return;
+
+            // 1. Hiển thị tin nhắn người dùng
+            addMessage(userText, 'user');
+            input.value = '';
+            input.disabled = true;
+            btnSend.disabled = true;
+
+            // 2. Hiện trạng thái chờ
+            const loadingMsg = addMessage('Bạn Đồng Hành đang lắng nghe...', 'bot loading');
+
+            try {
+                // 3. Gọi Serverless Function trên Vercel
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: userText,
+                        history: chatHistory
+                    })
+                });
+
+                let data = {};
+                try { data = await response.json(); } catch (e) { data = {}; }
+
+                if (!response.ok || !data.text) {
+                    throw new Error(data.error || ('Máy chủ trả về lỗi ' + response.status));
+                }
+
+                // 4. Hiển thị câu trả lời
+                loadingMsg.remove();
+                addMessage(data.text, 'bot');
+
+                // 5. Lưu lịch sử hội thoại
+                chatHistory.push({ role: 'user', parts: [{ text: userText }] });
+                chatHistory.push({ role: 'model', parts: [{ text: data.text }] });
+                if (chatHistory.length > MAX_HISTORY) {
+                    chatHistory = chatHistory.slice(-MAX_HISTORY);
+                }
+            } catch (error) {
+                console.error('Lỗi gọi AI:', error);
+                loadingMsg.remove();
+                addMessage('Xin lỗi, mình đang gặp trục trặc kết nối nên chưa trả lời được. Bạn thử gửi lại sau ít phút nhé. (Chi tiết: ' + error.message + ')', 'error');
+            } finally {
+                input.disabled = false;
+                btnSend.disabled = false;
+                input.focus();
+            }
+        }
+    </script>
+</body>
+</html>
