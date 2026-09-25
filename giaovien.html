@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trang giáo viên - Bạn Đồng Hành | THPT Đức Linh</title>
+    <meta name="robots" content="noindex">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.js"></script>
+    <style>
+        :root {
+            --primary: #0284c7; --dark: #0c4a6e; --text: #1e293b; --muted: #64748b;
+            --border: #e2e8f0; --bg: #f8fafc; --white: #fff;
+            --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+            --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: var(--bg); color: var(--text); line-height: 1.5; }
+        .container { width: 94%; max-width: 1200px; margin: 0 auto; }
+        header { background: var(--white); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+        .bar { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; gap: 10px; flex-wrap: wrap; }
+        .logo { font-weight: 700; color: var(--primary); font-size: 18px; text-decoration: none; }
+        .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+        .tab { background: none; border: 1px solid transparent; padding: 8px 12px; border-radius: 8px; font-weight: 600; color: var(--muted); cursor: pointer; font-size: 14px; }
+        .tab.active { background: #e0f2fe; color: var(--dark); }
+        .tab .badge { background: #e34948; color: #fff; border-radius: 999px; padding: 0 7px; font-size: 12px; margin-left: 4px; }
+        main { padding: 20px 0 40px; }
+        h2 { color: var(--dark); font-size: 22px; margin-bottom: 4px; }
+        .sub { color: var(--muted); font-size: 14px; margin-bottom: 16px; }
+        .card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+        .card h3 { font-size: 16px; color: var(--dark); margin-bottom: 10px; }
+        .btn { border: none; border-radius: 8px; padding: 9px 14px; font-weight: 600; font-size: 14px; cursor: pointer; }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--dark); }
+        .btn-light { background: #f1f5f9; color: var(--text); }
+        .btn-danger { background: #fee2e2; color: #991b1b; }
+        .btn:disabled { opacity: .6; cursor: not-allowed; }
+        input, select, textarea { font-size: 15px; padding: 9px 11px; border: 1px solid #cbd5e1; border-radius: 8px; width: 100%; }
+        textarea { resize: vertical; font-family: Consolas, 'Courier New', monospace; font-size: 14px; }
+        .notice { font-size: 14px; padding: 10px 12px; border-radius: 8px; margin: 10px 0; }
+        .notice.ok { background: #ecfdf5; color: #065f46; }
+        .notice.err { background: #fee2e2; color: #991b1b; }
+        .notice.info { background: #f0f9ff; color: var(--dark); }
+        .hidden { display: none !important; }
+
+        /* Đăng nhập */
+        .login { max-width: 380px; margin: 60px auto; }
+
+        /* Ô số liệu */
+        .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .tile { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+        .tile .label { color: var(--muted); font-size: 13px; }
+        .tile .value { font-size: 30px; font-weight: 700; color: var(--text); line-height: 1.2; }
+        .tile .hint { color: var(--muted); font-size: 12px; }
+        .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .chart-wrap { position: relative; height: 300px; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+        th { background: #f8fafc; color: var(--muted); font-weight: 600; white-space: nowrap; }
+        .table-scroll { overflow-x: auto; }
+        .lv { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+        .lv0 { background: #f1f5f9; color: #475569; }
+        .lv1 { background: #e0f2fe; color: #075985; }
+        .lv2 { background: #fef3c7; color: #92400e; }
+        .lv3 { background: #fee2e2; color: #991b1b; }
+        .ok-cell { color: #065f46; font-weight: 700; }
+        .bad-cell { color: #991b1b; font-weight: 700; }
+
+        /* Lịch hẹn */
+        .booking { border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 12px; background: var(--white); }
+        .booking.new { border-left: 4px solid #e34948; }
+        .booking .head { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+        .booking .code { font-weight: 800; color: var(--dark); letter-spacing: 1px; }
+        .booking dl { display: grid; grid-template-columns: 150px 1fr; gap: 4px 10px; font-size: 14px; margin-bottom: 10px; }
+        .booking dt { color: var(--muted); }
+        .booking .edit { display: grid; grid-template-columns: 200px 1fr; gap: 10px; }
+        .booking .actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+
+        .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .progress { height: 8px; background: #e2e8f0; border-radius: 99px; overflow: hidden; margin: 10px 0; }
+        .progress div { height: 100%; background: var(--primary); width: 0; transition: width .2s; }
+        .cm td, .cm th { text-align: center; }
+
+        @media (max-width: 800px) {
+            .charts { grid-template-columns: 1fr; }
+            .booking dl, .booking .edit { grid-template-columns: 1fr; }
+            .booking dt { margin-top: 4px; }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <div class="container bar">
+        <a class="logo" href="/">🤝 Bạn Đồng Hành · Giáo viên</a>
+        <div class="tabs hidden" id="tabs">
+            <button class="tab active" data-tab="overview">📊 Tổng quan</button>
+            <button class="tab" data-tab="bookings">📅 Lịch hẹn <span class="badge hidden" id="badgeNew">0</span></button>
+            <button class="tab" data-tab="kb">🏫 Kiến thức trường</button>
+            <button class="tab" data-tab="test">🧪 Kiểm thử</button>
+            <button class="tab" onclick="logout()">Đăng xuất</button>
+        </div>
+    </div>
+</header>
+
+<main class="container">
+    <!-- ===== ĐĂNG NHẬP ===== -->
+    <section id="loginView" class="login card">
+        <h2>Đăng nhập giáo viên</h2>
+        <p class="sub">Nhập mật khẩu giáo viên (TEACHER_PASSWORD đã đặt trên Vercel).</p>
+        <form id="loginForm">
+            <input type="password" id="pw" placeholder="Mật khẩu" autocomplete="current-password">
+            <div style="margin-top:10px"><button class="btn btn-primary" type="submit" style="width:100%">Đăng nhập</button></div>
+        </form>
+        <div id="loginMsg"></div>
+    </section>
+
+    <!-- ===== TỔNG QUAN ===== -->
+    <section id="tab-overview" class="hidden">
+        <div class="row" style="justify-content:space-between">
+            <div>
+                <h2>Tổng quan</h2>
+                <p class="sub">Số liệu ẩn danh: chỉ có chủ đề và mức nguy cơ, không có nội dung tin nhắn.</p>
+            </div>
+            <div class="row">
+                <select id="weeksSel" style="width:auto">
+                    <option value="4">4 tuần</option>
+                    <option value="8" selected>8 tuần</option>
+                    <option value="12">12 tuần</option>
+                    <option value="26">26 tuần</option>
+                </select>
+                <button class="btn btn-light" onclick="loadStats()">↻ Tải lại</button>
+            </div>
+        </div>
+        <div id="statsMsg"></div>
+        <div class="tiles">
+            <div class="tile"><div class="label">Tin nhắn tuần này</div><div class="value" id="tMsg">–</div><div class="hint">số tin học sinh gửi</div></div>
+            <div class="tile"><div class="label">Cuộc trò chuyện tuần này</div><div class="value" id="tConv">–</div><div class="hint">mỗi lần mở trang là 1 cuộc</div></div>
+            <div class="tile"><div class="label">Cuộc có cảnh báo tuần này</div><div class="value" id="tFlag">–</div><div class="hint">có ít nhất 1 tin mức 2 hoặc 3</div></div>
+            <div class="tile"><div class="label">Tin nhắn mức 3 (khẩn cấp)</div><div class="value" id="tL3">–</div><div class="hint">trong tuần này</div></div>
+            <div class="tile"><div class="label">Lịch hẹn chưa xử lý</div><div class="value" id="tBook">–</div><div class="hint">trạng thái "Mới"</div></div>
+        </div>
+        <div class="charts">
+            <div class="card">
+                <h3>Chủ đề học sinh chia sẻ theo tuần (số tin nhắn)</h3>
+                <div class="chart-wrap"><canvas id="chartTopics"></canvas></div>
+            </div>
+            <div class="card">
+                <h3>Cuộc trò chuyện và cuộc có cảnh báo theo tuần</h3>
+                <div class="chart-wrap"><canvas id="chartFlags"></canvas></div>
+            </div>
+        </div>
+        <div class="card">
+            <h3>Cảnh báo gần đây (mức 2 – 3)</h3>
+            <p class="sub">"Mã cuộc" là mã ngẫu nhiên, giúp nhận biết nhiều cảnh báo thuộc cùng một cuộc trò chuyện. Hệ thống không biết học sinh là ai.</p>
+            <div class="table-scroll">
+                <table>
+                    <thead><tr><th>Thời gian</th><th>Mức</th><th>Chủ đề</th><th>Phát hiện bởi</th><th>Mã cuộc</th></tr></thead>
+                    <tbody id="alertsBody"><tr><td colspan="5">Đang tải...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== LỊCH HẸN ===== -->
+    <section id="tab-bookings" class="hidden">
+        <div class="row" style="justify-content:space-between">
+            <div>
+                <h2>Lịch hẹn tư vấn</h2>
+                <p class="sub">Học sinh đặt ẩn danh và tra cứu bằng mã hẹn. Lời nhắn của thầy cô sẽ hiện khi học sinh tra cứu mã.</p>
+            </div>
+            <div class="row">
+                <select id="bookingFilter" style="width:auto" onchange="renderBookings()">
+                    <option value="">Tất cả</option>
+                    <option value="moi" selected>Mới</option>
+                    <option value="da_hen">Đã hẹn</option>
+                    <option value="da_gap">Đã gặp</option>
+                    <option value="huy">Đã hủy</option>
+                </select>
+                <button class="btn btn-light" onclick="loadBookings()">↻ Tải lại</button>
+            </div>
+        </div>
+        <div id="bookingsMsg"></div>
+        <div id="bookingsList"></div>
+    </section>
+
+    <!-- ===== KIẾN THỨC TRƯỜNG ===== -->
+    <section id="tab-kb" class="hidden">
+        <h2>Kiến thức riêng của trường</h2>
+        <p class="sub">AI dùng nội dung này để trả lời câu hỏi về lịch thi, nội quy, phòng tư vấn, mẹo học tập… Mục nào chưa có thông tin, hãy để "[chưa cập nhật]"; AI sẽ không tự bịa.</p>
+        <div class="card">
+            <textarea id="kbText" rows="22"></textarea>
+            <div class="row" style="margin-top:10px">
+                <button class="btn btn-primary" onclick="saveKb()">💾 Lưu</button>
+                <button class="btn btn-light" onclick="resetKb()">Dùng lại nội dung mẫu</button>
+                <span class="sub" id="kbInfo" style="margin:0"></span>
+            </div>
+            <div id="kbMsg"></div>
+        </div>
+    </section>
+
+    <!-- ===== KIỂM THỬ ===== -->
+    <section id="tab-test" class="hidden">
+        <h2>Kiểm thử bộ phát hiện nguy cơ</h2>
+        <p class="sub">Dùng cho phần thực nghiệm của đề tài. Mỗi dòng gồm: <strong>câu | nhãn</strong> (nhãn 0–3 do nhóm gán và giáo viên tư vấn duyệt). Kết quả không ghi vào thống kê.</p>
+        <div class="card">
+            <textarea id="testInput" rows="12" placeholder="Hôm nay mình được 9 điểm Toán | 0
+Mai thi mà mình lo quá | 1
+Mình thấy mình vô dụng, chẳng ai cần mình | 2"></textarea>
+            <div class="row" style="margin-top:10px">
+                <button class="btn btn-primary" id="btnRun" onclick="runTest()">▶ Chạy kiểm thử</button>
+                <button class="btn btn-light" id="btnStop" onclick="stopTest()" disabled>■ Dừng</button>
+                <button class="btn btn-light" onclick="loadSample()">Nạp câu mẫu</button>
+                <button class="btn btn-light" id="btnCsv" onclick="exportCsv()" disabled>⬇ Tải CSV (mở bằng Excel)</button>
+                <label class="sub" style="margin:0">Nghỉ giữa các câu
+                    <select id="delaySel" style="width:auto">
+                        <option value="0">0 giây</option>
+                        <option value="1000">1 giây</option>
+                        <option value="2200" selected>2,2 giây (an toàn cho gói miễn phí)</option>
+                    </select>
+                </label>
+            </div>
+            <div class="progress"><div id="progressBar"></div></div>
+            <div id="testMsg" class="sub"></div>
+        </div>
+
+        <div class="card hidden" id="metricsCard">
+            <h3>Kết quả so sánh 3 cách phát hiện</h3>
+            <p class="sub">"Có nguy cơ" = mức 2 hoặc 3. <strong>Độ nhạy</strong> = tỉ lệ câu có nguy cơ được phát hiện (quan trọng nhất). <strong>Tỉ lệ báo nhầm</strong> = tỉ lệ câu bình thường bị báo có nguy cơ.</p>
+            <div class="table-scroll">
+                <table>
+                    <thead><tr><th>Cách phát hiện</th><th>Đúng mức (0–3)</th><th>Độ nhạy (≥2)</th><th>Độ đặc hiệu</th><th>Tỉ lệ báo nhầm</th><th>Bắt được mức 3</th><th>Thời gian TB</th></tr></thead>
+                    <tbody id="metricsBody"></tbody>
+                </table>
+            </div>
+            <h3 style="margin-top:16px">Ma trận nhầm lẫn – cách KẾT HỢP (hàng: nhãn thật, cột: hệ thống dự đoán)</h3>
+            <div class="table-scroll"><table class="cm" id="cmTable"></table></div>
+        </div>
+
+        <div class="card hidden" id="resultsCard">
+            <h3>Kết quả từng câu</h3>
+            <div class="table-scroll">
+                <table>
+                    <thead><tr><th>#</th><th>Câu</th><th>Nhãn</th><th>Lớp 1 (từ khóa)</th><th>Lớp 2 (AI)</th><th>Kết hợp</th><th>Từ khóa khớp / Lý do AI</th></tr></thead>
+                    <tbody id="resultsBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script>
+    /* ================== ĐĂNG NHẬP ================== */
+    let PW = '';
+    try { PW = sessionStorage.getItem('teacherPw') || ''; } catch (e) {}
+
+    const LEVEL_NAME = ['0 · Bình thường', '1 · Căng thẳng nhẹ', '2 · Đáng lo ngại', '3 · Khẩn cấp'];
+    const SOURCE_NAME = { tu_khoa: 'Từ khóa', AI: 'AI', ca_hai: 'Cả hai lớp', tich_luy: 'Tích lũy cả cuộc trò chuyện' };
+    const STATUS_NAME = { moi: 'Mới', da_hen: 'Đã hẹn', da_gap: 'Đã gặp', huy: 'Đã hủy' };
+    let TOPIC_NAMES = { hoc_tap: 'Học tập', thi_cu: 'Thi cử', ban_be: 'Bạn bè', gia_dinh: 'Gia đình', tinh_cam: 'Tình cảm', ban_than: 'Bản thân', bat_nat: 'Bắt nạt', khac: 'Khác' };
+    const SERIES = ['--s1', '--s2', '--s3', '--s4', '--s5', '--s6', '--s7', '--s8'].map(v => getComputedStyle(document.documentElement).getPropertyValue(v).trim());
+
+    function esc(s) { return String(s === undefined || s === null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function lvBadge(l) { return (l === null || l === undefined) ? '<span class="lv lv0">lỗi</span>' : '<span class="lv lv' + l + '">' + esc(LEVEL_NAME[l]) + '</span>'; }
+    function notice(el, type, text) { document.getElementById(el).innerHTML = text ? '<div class="notice ' + type + '">' + esc(text) + '</div>' : ''; }
+
+    async function api(method, params, body) {
+        const url = '/api/teacher' + (params ? '?' + new URLSearchParams(params) : '');
+        const r = await fetch(url, {
+            method,
+            headers: Object.assign({ 'X-Teacher-Password': PW }, body ? { 'Content-Type': 'application/json' } : {}),
+            body: body ? JSON.stringify(body) : undefined
+        });
+        const data = await r.json().catch(() => ({}));
+        if (r.status === 401) { if (PW) logout(data.error); throw new Error(data.error || 'Sai mật khẩu'); }
+        if (!r.ok) throw new Error(data.error || ('Lỗi ' + r.status));
+        return data;
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        PW = document.getElementById('pw').value;
+        try {
+            const d = await api('GET', { action: 'ping' });
+            try { sessionStorage.setItem('teacherPw', PW); } catch (e) {}
+            enterApp(d.db);
+        } catch (err) {
+            PW = '';
+            notice('loginMsg', 'err', err.message);
+        }
+    });
+
+    function logout(msg) {
+        PW = '';
+        try { sessionStorage.removeItem('teacherPw'); } catch (e) {}
+        document.getElementById('tabs').classList.add('hidden');
+        document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+        document.getElementById('loginView').classList.remove('hidden');
+        notice('loginMsg', 'err', msg || '');
+    }
+
+    function enterApp(hasDb) {
+        document.getElementById('loginView').classList.add('hidden');
+        document.getElementById('tabs').classList.remove('hidden');
+        showTab('overview');
+        if (!hasDb) notice('statsMsg', 'err', 'Chưa kết nối cơ sở dữ liệu (Upstash Redis). Thống kê, lịch hẹn và lưu kiến thức sẽ chưa hoạt động. Tab "Kiểm thử" vẫn dùng được.');
+    }
+
+    /* ================== CHUYỂN TAB ================== */
+    document.querySelectorAll('.tab[data-tab]').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+    function showTab(name) {
+        document.querySelectorAll('.tab[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+        ['overview', 'bookings', 'kb', 'test'].forEach(t => document.getElementById('tab-' + t).classList.toggle('hidden', t !== name));
+        if (name === 'overview') loadStats();
+        if (name === 'bookings') loadBookings();
+        if (name === 'kb') loadKb();
+    }
+
+    /* ================== TỔNG QUAN ================== */
+    let chartTopics = null, chartFlags = null;
+    document.getElementById('weeksSel').addEventListener('change', loadStats);
+
+    async function loadStats() {
+        try {
+            const d = await api('GET', { action: 'stats', weeks: document.getElementById('weeksSel').value });
+            if (d.topicNames) TOPIC_NAMES = d.topicNames;
+            notice('statsMsg', '', '');
+            const cur = d.weeks[d.weeks.length - 1];
+            document.getElementById('tMsg').textContent = cur.messages;
+            document.getElementById('tConv').textContent = cur.conversations;
+            document.getElementById('tFlag').textContent = cur.flagged;
+            document.getElementById('tL3').textContent = cur.levels[3];
+            document.getElementById('tBook').textContent = d.bookingsNew;
+            setBadge(d.bookingsNew);
+            drawCharts(d.weeks);
+            renderAlerts(d.alerts);
+        } catch (err) {
+            notice('statsMsg', 'err', err.message);
+            document.getElementById('alertsBody').innerHTML = '<tr><td colspan="5">Chưa có dữ liệu.</td></tr>';
+        }
+    }
+
+    function setBadge(n) {
+        const b = document.getElementById('badgeNew');
+        b.textContent = n;
+        b.classList.toggle('hidden', !n);
+    }
+
+    function drawCharts(weeks) {
+        if (!window.Chart) return;
+        const labels = weeks.map(w => 'Tuần ' + w.label);
+        const keys = Object.keys(TOPIC_NAMES);
+        Chart.defaults.font.family = "'Segoe UI', Tahoma, sans-serif";
+        Chart.defaults.color = '#475569';
+        const grid = { color: '#eef2f7' };
+
+        if (chartTopics) chartTopics.destroy();
+        chartTopics = new Chart(document.getElementById('chartTopics'), {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: keys.map((k, i) => ({
+                    label: TOPIC_NAMES[k],
+                    data: weeks.map(w => w.topics[k] || 0),
+                    backgroundColor: SERIES[i % SERIES.length],
+                    borderColor: '#ffffff', borderWidth: 1, borderRadius: 3, maxBarThickness: 36
+                }))
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, boxHeight: 12 } } },
+                scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid } }
+            }
+        });
+
+        if (chartFlags) chartFlags.destroy();
+        chartFlags = new Chart(document.getElementById('chartFlags'), {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'Cuộc trò chuyện', data: weeks.map(w => w.conversations), backgroundColor: SERIES[0], borderRadius: 4, maxBarThickness: 28 },
+                    { label: 'Cuộc có cảnh báo (mức ≥ 2)', data: weeks.map(w => w.flagged), backgroundColor: SERIES[1], borderRadius: 4, maxBarThickness: 28 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, boxHeight: 12 } } },
+                scales: { x: { grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0 }, grid } }
+            }
+        });
+    }
+
+    function renderAlerts(alerts) {
+        const body = document.getElementById('alertsBody');
+        if (!alerts || !alerts.length) { body.innerHTML = '<tr><td colspan="5">Chưa có cảnh báo nào.</td></tr>'; return; }
+        body.innerHTML = alerts.map(a =>
+            '<tr><td>' + esc(new Date(a.t).toLocaleString('vi-VN')) + '</td><td>' + lvBadge(a.level) + '</td><td>' +
+            esc(TOPIC_NAMES[a.topic] || a.topic) + '</td><td>' + esc(SOURCE_NAME[a.source] || a.source) + '</td><td>' + esc(a.cid) + '</td></tr>'
+        ).join('');
+    }
+
+    /* ================== LỊCH HẸN ================== */
+    let BOOKINGS = [];
+    async function loadBookings() {
+        try {
+            const d = await api('GET', { action: 'bookings' });
+            BOOKINGS = d.bookings || [];
+            notice('bookingsMsg', '', '');
+            setBadge(BOOKINGS.filter(b => b.status === 'moi').length);
+            renderBookings();
+        } catch (err) {
+            notice('bookingsMsg', 'err', err.message);
+        }
+    }
+
+    function renderBookings() {
+        const f = document.getElementById('bookingFilter').value;
+        const list = BOOKINGS.filter(b => !f || b.status === f);
+        const el = document.getElementById('bookingsList');
+        if (!list.length) { el.innerHTML = '<div class="notice info">Không có lịch hẹn nào' + (f ? ' ở trạng thái này' : '') + '.</div>'; return; }
+        el.innerHTML = list.map(b => `
+            <div class="booking ${b.status === 'moi' ? 'new' : ''}" data-code="${esc(b.code)}">
+                <div class="head">
+                    <span class="code">${esc(b.code)}</span>
+                    <span class="sub" style="margin:0">Gửi lúc ${esc(new Date(b.t).toLocaleString('vi-VN'))}</span>
+                </div>
+                <dl>
+                    <dt>Biệt danh</dt><dd>${esc(b.nickname) || '<i>(ẩn danh)</i>'}</dd>
+                    <dt>Chủ đề</dt><dd>${esc(TOPIC_NAMES[b.topic] || b.topic)}</dd>
+                    <dt>Thời gian mong muốn</dt><dd>${esc(b.preferred) || '–'}</dd>
+                    <dt>Cách liên hệ</dt><dd>${esc(b.contact) || '<i>(tự tra cứu bằng mã)</i>'}</dd>
+                    <dt>Lời nhắn</dt><dd>${esc(b.note).replace(/\n/g, '<br>') || '–'}</dd>
+                </dl>
+                <div class="edit">
+                    <select class="st">${Object.keys(STATUS_NAME).map(s => `<option value="${s}" ${s === b.status ? 'selected' : ''}>${STATUS_NAME[s]}</option>`).join('')}</select>
+                    <textarea class="rp" rows="2" placeholder="Lời nhắn cho học sinh (vd: Thầy/cô hẹn em 9h30 thứ Tư tại phòng tư vấn)">${esc(b.reply)}</textarea>
+                </div>
+                <div

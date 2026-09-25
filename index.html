@@ -2,8 +2,8 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bạn Đồng Hành - Trợ Lý AI Tư Vấn Tâm Lý Học Đường</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Bạn Đồng Hành - Trợ lý AI phát hiện sớm nguy cơ tâm lý | THPT Đức Linh</title>
 
     <!-- Thư viện KaTeX: hiển thị công thức Toán -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
@@ -14,306 +14,142 @@
             --soft-blue: #e0f2fe;
             --primary-blue: #0284c7;
             --dark-blue: #0c4a6e;
-            --mint: #f0fdf4;
             --text-dark: #1e293b;
             --text-muted: #64748b;
+            --border: #e2e8f0;
             --white: #ffffff;
+            --red: #b91c1c;
+            --amber-bg: #fffbeb;
+            --amber-border: #f59e0b;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        html { scroll-behavior: smooth; }
+        body { background-color: #f8fafc; color: var(--text-dark); line-height: 1.6; }
+        .container { width: 92%; max-width: 1200px; margin: 0 auto; }
 
-        body {
-            background-color: #f8fafc;
-            color: var(--text-dark);
-            line-height: 1.6;
+        /* ===== Thanh trên cùng ===== */
+        header { background: var(--white); box-shadow: 0 1px 5px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; }
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; gap: 10px; }
+        .logo { font-size: 20px; font-weight: 700; color: var(--primary-blue); text-decoration: none; white-space: nowrap; }
+        .nav-links { list-style: none; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+        .nav-links a, .nav-links button {
+            text-decoration: none; color: var(--text-muted); font-weight: 600; font-size: 14px;
+            background: none; border: none; cursor: pointer; padding: 8px 10px; border-radius: 8px;
         }
+        .nav-links a:hover, .nav-links button:hover { color: var(--primary-blue); background: #f1f5f9; }
+        .nav-links .nav-cta { background: var(--primary-blue); color: var(--white); }
+        .nav-links .nav-cta:hover { background: var(--dark-blue); color: var(--white); }
 
-        .container {
-            width: 90%;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+        /* ===== Phần đầu trang ===== */
+        .hero-section { background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); padding: 48px 0; border-bottom: 1px solid var(--border); }
+        .grid-layout { display: grid; grid-template-columns: 1fr 1.1fr; gap: 40px; align-items: center; }
+        .intro-text h1 { font-size: 38px; color: var(--dark-blue); line-height: 1.3; margin-bottom: 16px; }
+        .intro-text p { font-size: 17px; color: var(--text-muted); margin-bottom: 20px; }
+        .privacy-alert { background: var(--white); border-left: 4px solid #10b981; padding: 12px 15px; border-radius: 6px; font-size: 14px; color: #065f46; margin-bottom: 18px; }
+        .intro-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
-        header {
-            background-color: var(--white);
-            box-shadow: 0 1px 5px rgba(0,0,0,0.05);
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-        }
+        .btn { border: none; border-radius: 10px; padding: 12px 18px; font-weight: 600; font-size: 15px; cursor: pointer; transition: background 0.2s; }
+        .btn-primary { background: var(--primary-blue); color: var(--white); }
+        .btn-primary:hover { background: var(--dark-blue); }
+        .btn-outline { background: var(--white); color: var(--primary-blue); border: 1px solid #bae6fd; }
+        .btn-outline:hover { background: #f0f9ff; }
+        .btn-danger { background: var(--white); color: var(--red); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-        nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 0;
-        }
-
-        .logo {
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--primary-blue);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            text-decoration: none;
-        }
-
-        .nav-links {
-            list-style: none;
-            display: flex;
-            gap: 25px;
-        }
-
-        .nav-links a {
-            text-decoration: none;
-            color: var(--text-muted);
-            font-weight: 600;
-            font-size: 15px;
-            transition: color 0.3s;
-        }
-
-        .nav-links a:hover {
-            color: var(--primary-blue);
-        }
-
-        .hero-section {
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-            padding: 60px 0;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        .grid-layout {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 40px;
-            align-items: center;
-        }
-
-        .intro-text h1 {
-            font-size: 40px;
-            color: var(--dark-blue);
-            line-height: 1.3;
-            margin-bottom: 20px;
-        }
-
-        .intro-text p {
-            font-size: 17px;
-            color: var(--text-muted);
-            margin-bottom: 25px;
-        }
-
-        .privacy-alert {
-            background-color: var(--white);
-            border-left: 4px solid #10b981;
-            padding: 12px 15px;
-            border-radius: 6px;
-            font-size: 14px;
-            color: #065f46;
-            margin-bottom: 20px;
-        }
-
+        /* ===== Khung trò chuyện ===== */
         .chat-box {
-            background-color: var(--white);
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-            border: 1px solid #e2e8f0;
-            height: 480px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
+            background: var(--white); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+            border: 1px solid var(--border); height: 560px; display: flex; flex-direction: column; overflow: hidden;
+        }
+        .chat-header { background: var(--primary-blue); color: var(--white); padding: 14px 18px; display: flex; align-items: center; gap: 12px; }
+        .bot-avatar { width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+        .bot-status h4 { font-size: 15px; font-weight: 600; }
+        .bot-status p { font-size: 12px; opacity: 0.9; }
+
+        /* Khung đỏ cảnh báo khẩn cấp (mức 3) */
+        .crisis-banner { display: none; background: var(--red); color: var(--white); padding: 12px 16px; font-size: 14px; }
+        .crisis-banner.show { display: block; }
+        .crisis-banner strong { font-size: 15px; }
+        .crisis-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+        .crisis-actions a, .crisis-actions button {
+            background: var(--white); color: var(--red); border: none; border-radius: 8px; padding: 8px 12px;
+            font-weight: 700; font-size: 14px; text-decoration: none; cursor: pointer;
         }
 
-        .chat-header {
-            background-color: var(--primary-blue);
-            color: var(--white);
-            padding: 15px 20px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+        .chat-messages { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #fafafa; }
+        .msg { max-width: 85%; padding: 11px 15px; border-radius: 12px; font-size: 15px; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere; }
+        .msg.rich { white-space: normal; }
+        .msg .katex-display { margin: 8px 0; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+        .msg .katex { font-size: 1.08em; }
+        .msg.bot { background: var(--soft-blue); color: var(--dark-blue); align-self: flex-start; border-bottom-left-radius: 2px; }
+        .msg.user { background: var(--primary-blue); color: var(--white); align-self: flex-end; border-bottom-right-radius: 2px; }
+        .msg.loading { background: #e2e8f0; color: var(--text-muted); font-style: italic; align-self: flex-start; }
+        .msg.error { background: #fee2e2; color: #991b1b; align-self: flex-start; }
 
-        .bot-avatar {
-            width: 40px;
-            height: 40px;
-            background-color: rgba(255,255,255,0.2);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-        }
+        /* Thẻ gợi ý gặp thầy cô (mức 2) */
+        .care-card { align-self: flex-start; max-width: 85%; background: var(--amber-bg); border: 1px solid var(--amber-border); color: #78350f; border-radius: 12px; padding: 11px 15px; font-size: 14px; }
+        .care-card button { margin-top: 8px; background: #f59e0b; color: #fff; border: none; border-radius: 8px; padding: 8px 12px; font-weight: 600; cursor: pointer; font-size: 14px; }
 
-        .bot-status h4 {
-            font-size: 15px;
-            font-weight: 600;
+        .chat-input-area { padding: 12px; background: var(--white); border-top: 1px solid var(--border); display: flex; gap: 8px; }
+        .chat-input-area textarea {
+            flex: 1; padding: 11px 12px; border: 1px solid #cbd5e1; border-radius: 10px; outline: none;
+            font-size: 16px; resize: none; max-height: 120px; line-height: 1.4;
         }
+        .chat-input-area textarea:focus { border-color: var(--primary-blue); }
+        .btn-send { background: var(--primary-blue); color: var(--white); border: none; padding: 0 20px; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 15px; }
+        .btn-send:hover { background: var(--dark-blue); }
+        .btn-send:disabled { background: #94a3b8; cursor: not-allowed; }
+        .input-hint { font-size: 12px; color: var(--text-muted); padding: 0 14px 10px; background: var(--white); }
 
-        .bot-status p {
-            font-size: 12px;
-            opacity: 0.9;
-        }
+        /* ===== Tính năng ===== */
+        .features { padding: 64px 0; background: var(--white); }
+        .section-title { text-align: center; font-size: 28px; color: var(--dark-blue); margin-bottom: 36px; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; }
+        .feature-card { padding: 26px; border-radius: 12px; background: #f8fafc; border: 1px solid var(--border); }
+        .feature-card h3 { margin-bottom: 10px; color: var(--primary-blue); font-size: 18px; }
 
-        .chat-messages {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            background-color: #fafafa;
-        }
+        /* ===== Chân trang ===== */
+        footer { background: var(--dark-blue); color: #cbd5e1; padding: 36px 0; text-align: center; }
+        .crisis-line { background: var(--red); color: var(--white); padding: 10px 14px; border-radius: 8px; display: inline-block; margin-bottom: 18px; font-weight: 700; }
+        .crisis-line a { color: var(--white); }
+        footer .teacher-link { color: #93c5fd; font-size: 14px; }
 
-        .msg {
-            max-width: 80%;
-            padding: 12px 16px;
-            border-radius: 12px;
-            font-size: 14.5px;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
+        /* ===== Hộp thoại (đặt lịch, tra cứu) ===== */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55); z-index: 500; align-items: center; justify-content: center; padding: 16px; }
+        .modal.show { display: flex; }
+        .modal-card { background: var(--white); border-radius: 16px; width: 100%; max-width: 480px; max-height: 92vh; overflow-y: auto; padding: 22px; }
+        .modal-card h3 { color: var(--dark-blue); margin-bottom: 6px; font-size: 20px; }
+        .modal-card .sub { color: var(--text-muted); font-size: 14px; margin-bottom: 14px; }
+        .field { margin-bottom: 12px; }
+        .field label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+        .field label span { font-weight: 400; color: var(--text-muted); }
+        .field input, .field select, .field textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; }
+        .field textarea { resize: vertical; min-height: 80px; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; flex-wrap: wrap; }
+        .code-box { background: #f0f9ff; border: 2px dashed var(--primary-blue); border-radius: 12px; text-align: center; padding: 16px; margin: 12px 0; }
+        .code-box .code { font-size: 30px; font-weight: 800; letter-spacing: 2px; color: var(--dark-blue); }
+        .notice { font-size: 14px; padding: 10px 12px; border-radius: 8px; margin-top: 10px; }
+        .notice.ok { background: #ecfdf5; color: #065f46; }
+        .notice.err { background: #fee2e2; color: #991b1b; }
+        .status-pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; background: #e0f2fe; color: var(--dark-blue); }
 
-        /* Tin nhắn AI đã định dạng (có công thức) */
-        .msg.rich {
-            white-space: normal;
-        }
-
-        .msg .katex-display {
-            margin: 8px 0;
-            overflow-x: auto;
-            overflow-y: hidden;
-            padding: 2px 0;
-        }
-
-        .msg .katex {
-            font-size: 1.08em;
-        }
-
-        .msg.bot {
-            background-color: var(--soft-blue);
-            color: var(--dark-blue);
-            align-self: flex-start;
-            border-bottom-left-radius: 2px;
-        }
-
-        .msg.user {
-            background-color: var(--primary-blue);
-            color: var(--white);
-            align-self: flex-end;
-            border-bottom-right-radius: 2px;
-        }
-
-        .msg.loading {
-            background-color: #e2e8f0;
-            color: var(--text-muted);
-            font-style: italic;
-            align-self: flex-start;
-        }
-
-        .msg.error {
-            background-color: #fee2e2;
-            color: #991b1b;
-            align-self: flex-start;
-        }
-
-        .chat-input-area {
-            padding: 15px;
-            background-color: var(--white);
-            border-top: 1px solid #e2e8f0;
-            display: flex;
-            gap: 10px;
-        }
-
-        .chat-input-area input {
-            flex: 1;
-            padding: 12px;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            outline: none;
-            font-size: 14px;
-        }
-
-        .btn-send {
-            background-color: var(--primary-blue);
-            color: var(--white);
-            border: none;
-            padding: 0 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-
-        .btn-send:hover {
-            background-color: var(--dark-blue);
-        }
-
-        .btn-send:disabled {
-            background-color: #94a3b8;
-            cursor: not-allowed;
-        }
-
-        .features {
-            padding: 70px 0;
-            background-color: var(--white);
-        }
-
-        .section-title {
-            text-align: center;
-            font-size: 28px;
-            color: var(--dark-blue);
-            margin-bottom: 40px;
-        }
-
-        .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-        }
-
-        .feature-card {
-            padding: 30px;
-            border-radius: 12px;
-            background-color: #f8fafc;
-            border: 1px solid #e2e8f0;
-        }
-
-        .feature-card h3 {
-            margin-bottom: 12px;
-            color: var(--primary-blue);
-        }
-
-        footer {
-            background-color: var(--dark-blue);
-            color: #94a3b8;
-            padding: 40px 0;
-            text-align: center;
-        }
-
-        .crisis-line {
-            background-color: #b91c1c;
-            color: var(--white);
-            padding: 10px;
-            border-radius: 6px;
-            display: inline-block;
-            margin-bottom: 20px;
-            font-weight: 700;
-        }
-
-        .crisis-line a {
-            color: var(--white);
-        }
-
-        @media (max-width: 768px) {
-            .grid-layout { grid-template-columns: 1fr; }
+        /* ===== Điện thoại ===== */
+        @media (max-width: 860px) {
+            .grid-layout { grid-template-columns: 1fr; gap: 20px; }
+            .hero-section { padding: 16px 0 24px; }
             .intro-text { text-align: center; }
-            nav { flex-direction: column; gap: 15px; }
-            .msg { max-width: 92%; }
+            .intro-text h1 { font-size: 24px; margin-bottom: 8px; }
+            .intro-text p { display: none; }
+            .privacy-alert { font-size: 13px; margin-bottom: 10px; text-align: left; }
+            .intro-actions { justify-content: center; }
+            .intro-actions .btn { padding: 10px 14px; font-size: 14px; }
+            .chat-box { height: calc(100dvh - 150px); min-height: 440px; border-radius: 14px; }
+            .msg, .care-card { max-width: 92%; }
+            .logo { font-size: 17px; }
+            .nav-links a, .nav-links button { font-size: 13px; padding: 6px 8px; }
+            .nav-links .hide-mobile { display: none; }
+            .section-title { font-size: 22px; }
         }
     </style>
 </head>
@@ -324,8 +160,9 @@
             <nav>
                 <a href="#" class="logo">🤝 Bạn Đồng Hành</a>
                 <ul class="nav-links">
-                    <li><a href="#tinhnang">Tính Năng</a></li>
-                    <li><a href="#hotline">Hỗ Trợ Khẩn Cấp</a></li>
+                    <li class="hide-mobile"><a href="#tinhnang">Tính năng</a></li>
+                    <li><button type="button" onclick="openLookup()">Tra cứu mã hẹn</button></li>
+                    <li><button type="button" class="nav-cta" onclick="openBooking()">Đặt lịch tư vấn</button></li>
                 </ul>
             </nav>
         </div>
@@ -334,9 +171,13 @@
     <section class="hero-section">
         <div class="container grid-layout">
             <div class="intro-text">
-                <div class="privacy-alert">🔒 <strong>Bảo mật 100%:</strong> Cuộc trò chuyện của bạn hoàn toàn ẩn danh.</div>
+                <div class="privacy-alert">🔒 <strong>Ẩn danh:</strong> Hệ thống không lưu tên và không lưu nội dung trò chuyện của bạn.</div>
                 <h1>Trút bỏ gánh nặng lòng,<br>Có Bạn Đồng Hành lắng nghe.</h1>
-                <p>Không gian an toàn, không phán xét. Trợ lý AI lắng nghe áp lực học tập, thi cử và những tâm tư khó nói của học sinh 24/7.</p>
+                <p>Không gian an toàn, không phán xét. Trợ lý AI lắng nghe áp lực học tập, thi cử và những tâm tư khó nói, đồng thời kết nối bạn với thầy cô tư vấn của trường khi cần.</p>
+                <div class="intro-actions">
+                    <button class="btn btn-primary" type="button" onclick="openBooking()">📅 Đặt lịch gặp thầy cô tư vấn</button>
+                    <button class="btn btn-outline" type="button" onclick="openLookup()">🔎 Tra cứu mã hẹn</button>
+                </div>
             </div>
 
             <div class="chat-box">
@@ -347,32 +188,47 @@
                         <p>🟢 Đang trực tuyến, luôn lắng nghe...</p>
                     </div>
                 </div>
+
+                <div class="crisis-banner" id="crisisBanner" role="alert">
+                    <strong>💗 Bạn không một mình.</strong> Nếu bạn đang nghĩ đến việc làm hại bản thân hoặc đang gặp nguy hiểm, hãy gọi ngay <strong>111</strong> (miễn phí, 24/7) hoặc <strong>115</strong>, và báo cho thầy cô hoặc người lớn bạn tin tưởng.
+                    <div class="crisis-actions">
+                        <a href="tel:111">📞 Gọi 111</a>
+                        <a href="tel:115">🚑 Gọi 115</a>
+                        <button type="button" onclick="openBooking()">📅 Gặp thầy cô tư vấn</button>
+                    </div>
+                </div>
+
                 <div class="chat-messages" id="chatMessages">
                     <div class="msg bot">Chào bạn! Mình là Bạn Đồng Hành. Hôm nay trường lớp hoặc cuộc sống của bạn có điều gì làm bạn áp lực hay mệt mỏi không? Hãy chia sẻ với mình nhé! 😊</div>
                 </div>
                 <form class="chat-input-area" id="chatForm">
-                    <input type="text" id="userInput" placeholder="Nhập tâm sự của bạn tại đây..." autocomplete="off">
+                    <textarea id="userInput" rows="1" placeholder="Nhập tin nhắn của bạn..." autocomplete="off"></textarea>
                     <button type="submit" class="btn-send" id="btnSend">Gửi</button>
                 </form>
+                <div class="input-hint">Viết công thức Toán giữa hai dấu $, ví dụ: $x^2 - 3x + 2 = 0$</div>
             </div>
         </div>
     </section>
 
     <section class="features" id="tinhnang">
         <div class="container">
-            <h2 class="section-title">Bạn Đồng Hành có thể giúp gì cho bạn?</h2>
+            <h2 class="section-title">Bạn Đồng Hành hoạt động như thế nào?</h2>
             <div class="feature-grid">
                 <div class="feature-card">
-                    <h3>📚 Áp lực học tập &amp; thi cử</h3>
-                    <p>Chia sẻ những lo lắng về điểm số, kỳ thi, kỳ vọng của gia đình và cùng tìm cách sắp xếp lại suy nghĩ.</p>
+                    <h3>💬 Lắng nghe 24/7</h3>
+                    <p>Chia sẻ áp lực học tập, thi cử, bạn bè, gia đình bất cứ lúc nào. Trợ lý trả lời nhẹ nhàng, không phán xét.</p>
                 </div>
                 <div class="feature-card">
-                    <h3>👫 Bạn bè &amp; các mối quan hệ</h3>
-                    <p>Lắng nghe những mâu thuẫn, hiểu lầm với bạn bè, thầy cô hay gia đình một cách nhẹ nhàng, không phán xét.</p>
+                    <h3>🛡️ Phát hiện sớm nguy cơ</h3>
+                    <p>Hai lớp bảo vệ: bộ từ điển từ khóa và AI phân loại mức độ. Khi có dấu hiệu đáng lo, hệ thống gợi ý gặp thầy cô và hiện số hỗ trợ khẩn cấp.</p>
                 </div>
                 <div class="feature-card">
-                    <h3>🌙 Luôn sẵn sàng 24/7</h3>
-                    <p>Bất cứ lúc nào bạn cần một người để tâm sự, Bạn Đồng Hành luôn ở đây. Cuộc trò chuyện không được lưu lại.</p>
+                    <h3>📅 Kết nối thầy cô tư vấn</h3>
+                    <p>Đặt lịch gặp ẩn danh, nhận mã hẹn để tra cứu phản hồi của thầy cô tư vấn của trường.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🏫 Hiểu về trường mình</h3>
+                    <p>Hỏi về lịch thi, nội quy, mẹo học tập của Trường THPT Đức Linh. Hỏi bài Toán cũng được, công thức hiển thị rõ ràng.</p>
                 </div>
             </div>
         </div>
@@ -380,52 +236,122 @@
 
     <footer id="hotline">
         <div class="container">
-            <div class="crisis-line">🆘 Nếu bạn đang gặp nguy hiểm hoặc có ý định làm hại bản thân: gọi ngay <a href="tel:111">111</a> (Tổng đài Quốc gia Bảo vệ Trẻ em, miễn phí 24/7) hoặc <a href="tel:115">115</a> (Cấp cứu)</div>
+            <div class="crisis-line">🆘 Khi gặp nguy hiểm hoặc có ý định làm hại bản thân: gọi ngay <a href="tel:111">111</a> (Tổng đài Quốc gia Bảo vệ Trẻ em, miễn phí 24/7) hoặc <a href="tel:115">115</a> (Cấp cứu)</div>
             <p>Bạn Đồng Hành là trợ lý AI hỗ trợ lắng nghe, không thay thế chuyên gia tâm lý. Hãy tìm đến thầy cô, cha mẹ hoặc người bạn tin tưởng khi cần.</p>
-            <p style="margin-top:10px;">© 2026 Bạn Đồng Hành</p>
+            <p style="margin-top:10px;">© 2026 Dự án KHKT – Trường THPT Đức Linh · <a class="teacher-link" href="/giaovien.html">Dành cho giáo viên</a></p>
         </div>
     </footer>
 
+    <!-- ===== Hộp thoại ĐẶT LỊCH ===== -->
+    <div class="modal" id="bookingModal" onclick="if(event.target===this) closeModal('bookingModal')">
+        <div class="modal-card">
+            <div id="bookingFormWrap">
+                <h3>📅 Đặt lịch gặp thầy cô tư vấn</h3>
+                <p class="sub">Hoàn toàn ẩn danh. Bạn có thể bỏ trống mọi ô. Sau khi gửi, bạn sẽ nhận một <strong>mã hẹn</strong> để tra cứu phản hồi của thầy cô.</p>
+                <form id="bookingForm">
+                    <div class="field">
+                        <label>Biệt danh <span>(không bắt buộc)</span></label>
+                        <input name="nickname" maxlength="40" placeholder="Ví dụ: Mây, Gió...">
+                    </div>
+                    <div class="field">
+                        <label>Điều bạn muốn trao đổi</label>
+                        <select name="topic">
+                            <option value="hoc_tap">Học tập</option>
+                            <option value="thi_cu">Thi cử</option>
+                            <option value="ban_be">Bạn bè</option>
+                            <option value="gia_dinh">Gia đình</option>
+                            <option value="tinh_cam">Tình cảm</option>
+                            <option value="ban_than">Bản thân</option>
+                            <option value="bat_nat">Bị bắt nạt</option>
+                            <option value="khac" selected>Khác / chưa muốn nói</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>Thời gian bạn có thể gặp <span>(không bắt buộc)</span></label>
+                        <input name="preferred" maxlength="100" placeholder="Ví dụ: Giờ ra chơi sáng thứ Tư">
+                    </div>
+                    <div class="field">
+                        <label>Cách thầy cô liên hệ lại <span>(không bắt buộc)</span></label>
+                        <input name="contact" maxlength="100" placeholder="Ví dụ: Lớp 11A2, hoặc để trống và tự tra cứu bằng mã">
+                    </div>
+                    <div class="field">
+                        <label>Lời nhắn cho thầy cô <span>(không bắt buộc)</span></label>
+                        <textarea name="note" maxlength="600" placeholder="Bạn muốn thầy cô biết trước điều gì?"></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-outline" onclick="closeModal('bookingModal')">Đóng</button>
+                        <button type="submit" class="btn btn-primary" id="btnBooking">Gửi yêu cầu</button>
+                    </div>
+                    <div id="bookingMsg"></div>
+                </form>
+            </div>
+            <div id="bookingDone" style="display:none">
+                <h3>✅ Đã gửi yêu cầu</h3>
+                <p class="sub">Hãy <strong>chụp màn hình hoặc ghi lại</strong> mã hẹn dưới đây. Bạn dùng mã này ở mục "Tra cứu mã hẹn" để xem thầy cô trả lời.</p>
+                <div class="code-box"><div class="code" id="bookingCode">TV-XXXXXX</div></div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline" onclick="copyCode()">📋 Sao chép mã</button>
+                    <button type="button" class="btn btn-primary" onclick="closeModal('bookingModal')">Xong</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Hộp thoại TRA CỨU ===== -->
+    <div class="modal" id="lookupModal" onclick="if(event.target===this) closeModal('lookupModal')">
+        <div class="modal-card">
+            <h3>🔎 Tra cứu mã hẹn</h3>
+            <p class="sub">Nhập mã hẹn bạn nhận được khi đặt lịch để xem phản hồi của thầy cô.</p>
+            <form id="lookupForm">
+                <div class="field">
+                    <input id="lookupCode" maxlength="12" placeholder="Ví dụ: TV-AB12CD" style="text-transform:uppercase">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('lookupModal')">Đóng</button>
+                    <button type="submit" class="btn btn-primary">Tra cứu</button>
+                </div>
+            </form>
+            <div id="lookupResult"></div>
+        </div>
+    </div>
+
     <script>
+        /* ================== TRẠNG THÁI ================== */
         let chatHistory = [];
         const MAX_HISTORY = 20;
+        let riskScore = 0; // điểm nguy cơ tích lũy của cuộc trò chuyện
+        const conversationId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
 
         const form = document.getElementById('chatForm');
         const input = document.getElementById('userInput');
         const btnSend = document.getElementById('btnSend');
         const messagesContainer = document.getElementById('chatMessages');
 
+        /* ================== HIỂN THỊ CÔNG THỨC TOÁN ================== */
         function escapeHtml(s) {
-            return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
-        // Chuyển câu trả lời của AI (có LaTeX, **in đậm**, gạch đầu dòng) thành HTML đẹp
-        function formatBotText(text) {
+        function formatRichText(text) {
             const maths = [];
             const put = (tex, display) => {
                 maths.push({ tex: tex.trim(), display: display });
                 return (display ? '@@D' : '@@I') + (maths.length - 1) + '@@';
             };
-
             let s = String(text);
-
-            // 1. Tách các công thức ra trước
-            s = s.replace(/\$\$([\s\S]+?)\$\$/g, (m, t) => put(t, true));          // $$ ... $$
-            s = s.replace(/\\\[([\s\S]+?)\\\]/g, (m, t) => put(t, true));          // \[ ... \]
-            s = s.replace(/\\\(([\s\S]+?)\\\)/g, (m, t) => put(t, false));         // \( ... \)
+            s = s.replace(/\$\$([\s\S]+?)\$\$/g, (m, t) => put(t, true));
+            s = s.replace(/\\\[([\s\S]+?)\\\]/g, (m, t) => put(t, true));
+            s = s.replace(/\\\(([\s\S]+?)\\\)/g, (m, t) => put(t, false));
             s = s.replace(/\\begin\{(aligned|align\*?|cases|array|matrix|pmatrix|bmatrix|gathered)\}[\s\S]+?\\end\{\1\}/g,
                 m => put(m.replace(/\\begin\{align\*?\}/, '\\begin{aligned}').replace(/\\end\{align\*?\}/, '\\end{aligned}'), true));
-            s = s.replace(/(^|[^\\$])\$([^$\n]+?)\$/g, (m, pre, t) => pre + put(t, false)); // $ ... $
+            s = s.replace(/(^|[^\\$])\$([^$\n]+?)\$/g, (m, pre, t) => pre + put(t, false));
 
-            // 2. Định dạng chữ thường
             s = escapeHtml(s);
             s = s.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
             s = s.replace(/^#{1,6}\s*(.+)$/gm, '<strong>$1</strong>');
             s = s.replace(/^\s*[-*]\s+/gm, '• ');
             s = s.replace(/\n*(@@D\d+@@)\n*/g, '$1');
             s = s.replace(/\n/g, '<br>');
-
-            // 3. Vẽ công thức bằng KaTeX
             s = s.replace(/@@([DI])(\d+)@@/g, (m, k, i) => {
                 const it = maths[+i];
                 try {
@@ -437,29 +363,70 @@
             return s;
         }
 
-        function addMessage(text, type) {
+        function scrollBottom() {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function addPlain(text, type) {
             const div = document.createElement('div');
             div.className = 'msg ' + type;
             div.innerText = text;
             messagesContainer.appendChild(div);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            scrollBottom();
             return div;
         }
 
-        function addBotMessage(text) {
+        // Tin nhắn của học sinh và của AI đều hiển thị được công thức Toán
+        function addRich(text, type) {
             const div = document.createElement('div');
-            div.className = 'msg bot';
+            div.className = 'msg ' + type;
             if (window.katex) {
                 div.classList.add('rich');
-                div.innerHTML = formatBotText(text);
+                div.innerHTML = formatRichText(text);
             } else {
-                div.innerText = text; // nếu chưa tải được KaTeX thì hiện chữ thường
+                div.innerText = text;
             }
             messagesContainer.appendChild(div);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            scrollBottom();
             return div;
         }
 
+        /* ================== PHẢN HỒI THEO MỨC NGUY CƠ ================== */
+        function showCareCard() {
+            const card = document.createElement('div');
+            card.className = 'care-card';
+            card.innerHTML = '💛 Có vẻ bạn đang trải qua điều không dễ dàng. Thầy cô tư vấn của trường luôn sẵn sàng lắng nghe bạn, và bạn có thể đặt lịch <strong>ẩn danh</strong>.<br><button type="button">📅 Đặt lịch gặp thầy cô</button>';
+            card.querySelector('button').addEventListener('click', openBooking);
+            messagesContainer.appendChild(card);
+            scrollBottom();
+        }
+
+        let careShownAt = -99;
+        function handleRisk(risk, turn) {
+            if (!risk) return;
+            if (typeof risk.score === 'number') riskScore = risk.score;
+            if (risk.level >= 3) {
+                document.getElementById('crisisBanner').classList.add('show');
+            } else if (risk.level === 2 && turn - careShownAt >= 3) {
+                showCareCard(); // không hiện lặp lại liên tục
+                careShownAt = turn;
+            }
+        }
+
+        /* ================== GỬI TIN NHẮN ================== */
+        let turn = 0;
+
+        input.addEventListener('input', () => {
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+        });
+        input.addEventListener('keydown', (e) => {
+            // Máy tính: Enter để gửi, Shift+Enter để xuống dòng
+            if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) {
+                e.preventDefault();
+                form.requestSubmit();
+            }
+        });
         form.addEventListener('submit', sendMessage);
 
         async function sendMessage(event) {
@@ -467,45 +434,128 @@
             const userText = input.value.trim();
             if (!userText) return;
 
-            addMessage(userText, 'user');
+            turn++;
+            addRich(userText, 'user');
             input.value = '';
+            input.style.height = 'auto';
             input.disabled = true;
             btnSend.disabled = true;
 
-            const loadingMsg = addMessage('Bạn Đồng Hành đang lắng nghe...', 'bot loading');
+            const loadingMsg = addPlain('Bạn Đồng Hành đang lắng nghe...', 'bot loading');
 
             try {
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: userText, history: chatHistory })
+                    body: JSON.stringify({
+                        message: userText,
+                        history: chatHistory,
+                        cid: conversationId,
+                        riskScore: riskScore
+                    })
                 });
 
                 let data = {};
                 try { data = await response.json(); } catch (e) { data = {}; }
-
                 if (!response.ok || !data.text) {
                     throw new Error(data.error || ('Máy chủ trả về lỗi ' + response.status));
                 }
 
                 loadingMsg.remove();
-                addBotMessage(data.text);
+                addRich(data.text, 'bot');
+                handleRisk(data.risk, turn);
 
                 chatHistory.push({ role: 'user', parts: [{ text: userText }] });
                 chatHistory.push({ role: 'model', parts: [{ text: data.text }] });
-                if (chatHistory.length > MAX_HISTORY) {
-                    chatHistory = chatHistory.slice(-MAX_HISTORY);
-                }
+                if (chatHistory.length > MAX_HISTORY) chatHistory = chatHistory.slice(-MAX_HISTORY);
             } catch (error) {
                 console.error('Lỗi gọi AI:', error);
                 loadingMsg.remove();
-                addMessage('Xin lỗi, mình đang gặp trục trặc kết nối nên chưa trả lời được. Bạn thử gửi lại sau ít phút nhé. (Chi tiết: ' + error.message + ')', 'error');
+                addPlain('Xin lỗi, mình đang gặp trục trặc kết nối nên chưa trả lời được. Bạn thử gửi lại sau ít phút nhé. (Chi tiết: ' + error.message + ')', 'error');
             } finally {
                 input.disabled = false;
                 btnSend.disabled = false;
                 input.focus();
             }
         }
+
+        /* ================== HỘP THOẠI ================== */
+        function openModal(id) { document.getElementById(id).classList.add('show'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') { closeModal('bookingModal'); closeModal('lookupModal'); }
+        });
+
+        function openBooking() {
+            document.getElementById('bookingFormWrap').style.display = '';
+            document.getElementById('bookingDone').style.display = 'none';
+            document.getElementById('bookingMsg').innerHTML = '';
+            openModal('bookingModal');
+        }
+
+        document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnBooking');
+            const msg = document.getElementById('bookingMsg');
+            const fd = new FormData(e.target);
+            const payload = Object.fromEntries(fd.entries());
+            btn.disabled = true;
+            btn.textContent = 'Đang gửi...';
+            msg.innerHTML = '';
+            try {
+                const r = await fetch('/api/booking', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await r.json().catch(() => ({}));
+                if (!r.ok || !data.code) throw new Error(data.error || 'Lỗi ' + r.status);
+                document.getElementById('bookingCode').textContent = data.code;
+                document.getElementById('bookingFormWrap').style.display = 'none';
+                document.getElementById('bookingDone').style.display = '';
+                e.target.reset();
+            } catch (err) {
+                msg.innerHTML = '<div class="notice err">Chưa gửi được: ' + escapeHtml(err.message) + '</div>';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Gửi yêu cầu';
+            }
+        });
+
+        function copyCode() {
+            const code = document.getElementById('bookingCode').textContent;
+            if (navigator.clipboard) navigator.clipboard.writeText(code).catch(() => {});
+        }
+
+        function openLookup() {
+            document.getElementById('lookupResult').innerHTML = '';
+            openModal('lookupModal');
+            setTimeout(() => document.getElementById('lookupCode').focus(), 50);
+        }
+
+        document.getElementById('lookupForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const out = document.getElementById('lookupResult');
+            let code = document.getElementById('lookupCode').value.trim().toUpperCase().replace(/\s/g, '');
+            if (code && !code.startsWith('TV-')) code = 'TV-' + code.replace(/^TV/, '');
+            out.innerHTML = '<div class="notice">Đang tra cứu...</div>';
+            try {
+                const r = await fetch('/api/booking?code=' + encodeURIComponent(code));
+                const data = await r.json().catch(() => ({}));
+                if (!r.ok) throw new Error(data.error || 'Lỗi ' + r.status);
+                const date = new Date(data.createdAt).toLocaleString('vi-VN');
+                out.innerHTML =
+                    '<div class="notice ok">' +
+                    '<div><strong>Mã:</strong> ' + escapeHtml(data.code) + ' · gửi lúc ' + escapeHtml(date) + '</div>' +
+                    '<div style="margin-top:6px"><span class="status-pill">' + escapeHtml(data.statusText) + '</span></div>' +
+                    (data.reply
+                        ? '<div style="margin-top:8px"><strong>Thầy cô nhắn:</strong><br>' + escapeHtml(data.reply).replace(/\n/g, '<br>') + '</div>'
+                        : '<div style="margin-top:8px">Thầy cô chưa trả lời. Bạn quay lại tra cứu sau nhé.</div>') +
+                    '</div>';
+            } catch (err) {
+                out.innerHTML = '<div class="notice err">' + escapeHtml(err.message) + '</div>';
+            }
+        });
     </script>
 </body>
 </html>

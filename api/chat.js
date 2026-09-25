@@ -1,100 +1,56 @@
-// tệp: /api/chat.js  — Serverless Function trên Vercel
-// Dùng AI của Groq (miễn phí). API key lưu ở Vercel: Settings → Environment Variables → GROQ_API_KEY
+// tệp: /api/chat.js — API trò chuyện + phát hiện nguy cơ 2 lớp
+// API key lưu ở Vercel: Settings → Environment Variables → GROQ_API_KEY
 
-const SYSTEM_PROMPT = `Bạn là "Bạn Đồng Hành" – trợ lý AI dành cho học sinh THCS và THPT. Luôn trả lời bằng tiếng Việt, xưng "mình" và gọi người dùng là "bạn". Bạn có HAI vai trò:
+import {
+    detectKeywords, classifyAI, combineRisk, groqChat, REPLY_MODELS,
+    logEvent, getKnowledge, getGroqKey, redisConfig, redis, setCors, readBody, cleanText
+} from "./_lib.js";
 
-1) HỖ TRỢ HỌC TẬP (Toán và các môn khác):
-- Khi học sinh hỏi bài, hãy giúp đỡ tận tình, KHÔNG từ chối.
-- Trình bày lời giải rõ ràng theo từng bước, giải thích ngắn gọn vì sao làm như vậy, cuối cùng nêu kết luận/đáp số.
-- Với bài dài hoặc bài kiểm tra, ưu tiên gợi ý hướng làm và giải thích để học sinh tự hiểu, nhưng nếu học sinh yêu cầu lời giải thì vẫn giải đầy đủ.
-- Cuối bài có thể hỏi học sinh còn chỗ nào chưa hiểu không.
+function buildSystemPrompt(knowledge, l1Level) {
+    let p = `Bạn là "Bạn Đồng Hành" – trợ lý AI của Trường THPT Đức Linh dành cho học sinh. Luôn trả lời bằng tiếng Việt, xưng "mình", gọi người dùng là "bạn".
 
-2) LẮNG NGHE, TƯ VẤN TÂM LÝ HỌC ĐƯỜNG:
-- Khi học sinh chia sẻ áp lực học tập, thi cử, mâu thuẫn bạn bè, gia đình: trả lời ấm áp, đồng cảm, nhẹ nhàng, tuyệt đối không phán xét; ngắn gọn (3-4 câu), xoa dịu cảm xúc và đặt câu hỏi gợi mở để học sinh tâm sự tiếp.
-- Nếu học sinh có dấu hiệu muốn tự hại hoặc đang gặp nguy hiểm: khuyên học sinh gọi ngay Tổng đài 111 (miễn phí 24/7) hoặc 115, và tìm đến thầy cô, cha mẹ hoặc người lớn tin tưởng ngay lập tức.
+VAI TRÒ CHÍNH – LẮNG NGHE, HỖ TRỢ TÂM LÝ HỌC ĐƯỜNG:
+- Khi học sinh chia sẻ áp lực học tập, thi cử, bạn bè, gia đình, tình cảm: trả lời ấm áp, đồng cảm, nhẹ nhàng, tuyệt đối không phán xét; ngắn gọn (3–5 câu), xoa dịu cảm xúc, đặt câu hỏi gợi mở để học sinh chia sẻ thêm.
+- Khi học sinh có dấu hiệu đáng lo (tuyệt vọng, bị bắt nạt, cô lập kéo dài…): nhẹ nhàng gợi ý học sinh gặp thầy cô tư vấn của trường (có thể đặt lịch ẩn danh bằng nút "Đặt lịch gặp thầy cô tư vấn" trên trang).
+- Khi học sinh có ý định tự làm hại bản thân hoặc đang gặp nguy hiểm: thể hiện sự quan tâm chân thành, khuyên gọi NGAY Tổng đài 111 (miễn phí 24/7) hoặc 115, và báo ngay cho thầy cô, cha mẹ hoặc người lớn tin tưởng. Không hướng dẫn bất kỳ cách thức gây hại nào.
+- Bạn không phải bác sĩ, không chẩn đoán bệnh.
 
-QUY TẮC VIẾT CÔNG THỨC TOÁN (bắt buộc):
-- Công thức trong dòng viết giữa hai dấu $, ví dụ: $x^2 - 3x + 2 = 0$.
-- Công thức riêng một dòng viết giữa hai dấu $$, ví dụ: $$\\Delta = b^2 - 4ac$$
-- Nhiều dòng biến đổi dùng $$\\begin{aligned} ... \\end{aligned}$$
-- Không dùng bảng Markdown, không dùng khối code.`;
+VAI TRÒ PHỤ – HỖ TRỢ HỌC TẬP:
+- Khi học sinh hỏi bài (Toán và các môn khác): giải thích từng bước rõ ràng, nêu kết luận; ưu tiên gợi ý để học sinh tự hiểu.
+- Viết công thức Toán: trong dòng dùng $...$, riêng một dòng dùng $$...$$, nhiều dòng dùng $$\\begin{aligned} ... \\end{aligned}$$. Không dùng bảng Markdown, không dùng khối code.
 
-// Thử lần lượt các model, model nào chạy được thì dùng
-const MODELS = [
-    process.env.GROQ_MODEL,
-    "openai/gpt-oss-120b",
-    "llama-3.3-70b-versatile",
-    "openai/gpt-oss-20b",
-    "llama-3.1-8b-instant"
-].filter(Boolean);
-
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-
-function getApiKey() {
-    return (process.env.GROQ_API_KEY || "")
-        .trim()
-        .replace(/^GROQ_API_KEY\s*=\s*/i, "")
-        .replace(/^["']+|["']+$/g, "")
-        .trim();
-}
-
-async function callGroq(model, apiKey, messages) {
-    const payload = {
-        model,
-        messages,
-        temperature: 0.5,
-        max_tokens: 2048 // đủ dài cho lời giải Toán nhiều bước
-    };
-    // Model gpt-oss có chế độ "suy nghĩ": mức trung bình để giải Toán chính xác hơn
-    if (model.startsWith("openai/gpt-oss")) {
-        payload.reasoning_effort = "medium";
+THÔNG TIN RIÊNG CỦA TRƯỜNG:
+- Khi học sinh hỏi về lịch thi, nội quy, phòng tư vấn… của trường: CHỈ dùng thông tin trong phần dưới đây. Mục nào ghi "[chưa cập nhật]" hoặc không có thì nói là mình chưa có thông tin và gợi ý hỏi giáo viên chủ nhiệm. Không tự bịa.
+<<<THÔNG TIN TRƯỜNG
+${knowledge}
+THÔNG TIN TRƯỜNG>>>`;
+    if (l1Level >= 2) {
+        p += `\n\nLƯU Ý: Bộ lọc an toàn nhận thấy tin nhắn mới nhất có dấu hiệu ${l1Level >= 3 ? "NGUY CƠ KHẨN CẤP" : "đáng lo ngại"}. Hãy phản hồi theo đúng hướng dẫn an toàn ở trên.`;
     }
-
-    const r = await fetch(GROQ_URL, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + apiKey
-        },
-        body: JSON.stringify(payload)
-    });
-    const data = await r.json().catch(() => ({}));
-
-    if (!r.ok) {
-        const err = new Error((data.error && data.error.message) || `HTTP ${r.status}`);
-        err.status = r.status;
-        throw err;
-    }
-
-    const text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content || "").trim();
-    if (!text) {
-        const err = new Error("Model không trả về nội dung");
-        err.status = 502;
-        throw err;
-    }
-    return text;
+    return p;
 }
 
 export default async function handler(req, res) {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
+    setCors(res);
     if (req.method === "OPTIONS") return res.status(200).end();
-
-    const apiKey = getApiKey();
 
     // ===== TRANG TỰ KIỂM TRA: mở /api/chat trên trình duyệt =====
     if (req.method === "GET") {
+        const key = getGroqKey();
         const report = {
-            co_api_key: !!apiKey,
-            ky_tu_dau: apiKey ? apiKey.slice(0, 4) + "..." : "(trống)"
+            co_api_key: !!key,
+            ky_tu_dau: key ? key.slice(0, 4) + "..." : "(trống)",
+            co_so_du_lieu: redisConfig() ? "đã cấu hình" : "CHƯA kết nối (thống kê, đặt lịch sẽ không hoạt động)",
+            mat_khau_giao_vien: process.env.TEACHER_PASSWORD ? "đã đặt" : "CHƯA đặt TEACHER_PASSWORD"
         };
-        if (apiKey) {
+        if (redisConfig()) {
+            try { await redis([["PING"]]); report.co_so_du_lieu = "OK - kết nối tốt"; }
+            catch (e) { report.co_so_du_lieu = "LỖI: " + e.message; }
+        }
+        if (key) {
             try {
-                const text = await callGroq(MODELS[0], apiKey, [{ role: "user", content: "Chào bạn, trả lời 1 câu ngắn." }]);
-                report.ket_noi_AI = "OK - hoạt động tốt";
-                report.cau_tra_loi_thu = text;
+                const r = await groqChat({ models: REPLY_MODELS, messages: [{ role: "user", content: "Chào bạn, trả lời 1 câu ngắn." }], maxTokens: 300 });
+                report.ket_noi_AI = "OK - hoạt động tốt (" + r.model + ")";
             } catch (e) {
                 report.ket_noi_AI = "LỖI: " + e.message;
             }
@@ -105,43 +61,58 @@ export default async function handler(req, res) {
     if (req.method !== "POST") {
         return res.status(405).json({ error: "Chương trình chỉ hỗ trợ phương thức POST" });
     }
-
-    if (!apiKey) {
+    if (!getGroqKey()) {
         return res.status(500).json({ error: "Chưa thiết lập GROQ_API_KEY trên Vercel (Settings → Environment Variables)" });
     }
 
     try {
-        let body = req.body;
-        if (typeof body === "string") {
-            try { body = JSON.parse(body); } catch (e) { body = {}; }
-        }
-        const message = ((body && body.message) || "").toString().trim();
-        const history = Array.isArray(body && body.history) ? body.history : [];
-
+        const body = readBody(req);
+        const message = cleanText(body.message, 2000);
+        const history = Array.isArray(body.history) ? body.history.slice(-20) : [];
+        const cid = cleanText(body.cid, 40);
+        const prevScore = Number(body.riskScore) || 0;
         if (!message) return res.status(400).json({ error: "Tin nhắn trống" });
 
-        const messages = [{ role: "system", content: SYSTEM_PROMPT }];
-        history
+        const cleanHistory = history
             .filter(m => m && m.parts && m.parts[0] && typeof m.parts[0].text === "string")
-            .forEach(m => messages.push({
-                role: m.role === "user" ? "user" : "assistant",
-                content: m.parts[0].text
-            }));
-        messages.push({ role: "user", content: message });
+            .map(m => ({ role: m.role === "user" ? "user" : "assistant", content: cleanText(m.parts[0].text, 4000) }));
+        const previousUserMessages = cleanHistory.filter(m => m.role === "user").map(m => m.content);
 
-        let lastError = null;
-        for (const model of MODELS) {
-            try {
-                const text = await callGroq(model, apiKey, messages);
-                return res.status(200).json({ text, model });
-            } catch (err) {
-                lastError = err;
-                console.error(`Model ${model} lỗi:`, err.status, err.message);
-                if (err.status === 401) break;
-            }
+        // LỚP 1: từ khóa (chạy ngay, không cần AI)
+        const l1 = detectKeywords(message);
+
+        // LỚP 2 (AI phân loại) và câu trả lời chạy SONG SONG cho nhanh
+        const knowledge = (await getKnowledge()).text;
+        const messages = [{ role: "system", content: buildSystemPrompt(knowledge, l1.level) }]
+            .concat(cleanHistory, [{ role: "user", content: message }]);
+
+        const [l2Result, replyResult] = await Promise.allSettled([
+            classifyAI(message, previousUserMessages),
+            groqChat({ models: REPLY_MODELS, messages, temperature: 0.5, maxTokens: 2048, reasoning: "medium" })
+        ]);
+
+        if (replyResult.status !== "fulfilled") {
+            throw replyResult.reason;
+        }
+        const l2 = l2Result.status === "fulfilled" ? l2Result.value : null;
+        if (!l2) console.error("Lớp 2 lỗi:", l2Result.reason && l2Result.reason.message);
+
+        // KẾT HỢP 2 lớp + điểm tích lũy cả cuộc trò chuyện
+        const risk = combineRisk(l1.level, l2 ? l2.level : null, prevScore);
+        const topic = l2 ? l2.topic : "khac";
+        const source = l2 && l2.level >= l1.level ? (l1.level === l2.level ? "ca_hai" : "AI") : "tu_khoa";
+
+        // Ghi thống kê ẩn danh (không lưu nội dung). Lỗi ghi thì bỏ qua, không ảnh hưởng học sinh.
+        try {
+            await logEvent({ cid, level: risk.finalLevel, topic, source: risk.trend ? "tich_luy" : source });
+        } catch (e) {
+            console.error("Không ghi được thống kê:", e.message);
         }
 
-        return res.status(500).json({ error: (lastError && lastError.message) || "Lỗi xử lý AI nội bộ" });
+        return res.status(200).json({
+            text: replyResult.value.text,
+            risk: { level: risk.finalLevel, score: risk.score, trend: risk.trend, topic }
+        });
     } catch (error) {
         console.error("Lỗi xử lý máy chủ:", error);
         return res.status(500).json({ error: error.message || "Lỗi xử lý AI nội bộ" });
