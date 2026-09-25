@@ -1,74 +1,58 @@
 // tệp: /api/chat.js  — Serverless Function trên Vercel
-// Gọi trực tiếp REST API của Gemini, không cần thư viện ngoài.
-// API key KHÔNG để trong code. Key được lưu ở Vercel: Settings → Environment Variables → GEMINI_API_KEY
+// Dùng AI của Groq (miễn phí). API key lưu ở Vercel: Settings → Environment Variables → GROQ_API_KEY
 
-const SYSTEM_PROMPT = "Bạn là chuyên gia tư vấn tâm lý học đường mang tên 'Bạn Đồng Hành'. Hãy luôn lắng nghe học sinh với thái độ ấm áp, đồng cảm, nhẹ nhàng và tuyệt đối không phán xét. Nhiệm vụ của bạn là lắng nghe áp lực học tập, thi cử hoặc mâu thuẫn bạn bè của học sinh cấp 2, cấp 3. Hãy đưa ra câu trả lời ngắn gọn (tối đa 3-4 câu), tập trung xoa dịu cảm xúc và đặt câu hỏi gợi mở để học sinh tâm sự tiếp. Nếu phát hiện học sinh có dấu hiệu muốn tự hại nghiêm trọng, hãy khuyên học sinh gọi ngay Tổng đài 111 (miễn phí 24/7) hoặc 115, và tìm đến thầy cô, cha mẹ hoặc người lớn tin tưởng ngay lập tức.";
+const SYSTEM_PROMPT = "Bạn là chuyên gia tư vấn tâm lý học đường mang tên 'Bạn Đồng Hành'. Luôn trả lời bằng tiếng Việt. Hãy luôn lắng nghe học sinh với thái độ ấm áp, đồng cảm, nhẹ nhàng và tuyệt đối không phán xét. Nhiệm vụ của bạn là lắng nghe áp lực học tập, thi cử hoặc mâu thuẫn bạn bè của học sinh cấp 2, cấp 3. Hãy đưa ra câu trả lời ngắn gọn (tối đa 3-4 câu), tập trung xoa dịu cảm xúc và đặt câu hỏi gợi mở để học sinh tâm sự tiếp. Nếu phát hiện học sinh có dấu hiệu muốn tự hại nghiêm trọng, hãy khuyên học sinh gọi ngay Tổng đài 111 (miễn phí 24/7) hoặc 115, và tìm đến thầy cô, cha mẹ hoặc người lớn tin tưởng ngay lập tức.";
 
+// Thử lần lượt các model, model nào chạy được thì dùng
 const MODELS = [
-    process.env.GEMINI_MODEL,
-    "gemini-3.5-flash",
-    "gemini-flash-latest",
-    "gemini-3.5-flash-lite",
-    "gemini-3.1-flash-lite"
+    process.env.GROQ_MODEL,
+    "openai/gpt-oss-120b",
+    "llama-3.3-70b-versatile",
+    "openai/gpt-oss-20b",
+    "llama-3.1-8b-instant"
 ].filter(Boolean);
 
-const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-// Lấy key từ Vercel và làm sạch (bỏ khoảng trắng, xuống dòng, dấu ngoặc kép)
 function getApiKey() {
-    return (process.env.GEMINI_API_KEY || "")
+    return (process.env.GROQ_API_KEY || "")
         .trim()
-        .replace(/^GEMINI_API_KEY\s*=\s*/i, "")
+        .replace(/^GROQ_API_KEY\s*=\s*/i, "")
         .replace(/^["']+|["']+$/g, "")
         .trim();
 }
 
-// Gửi request tới Google, thử 2 cách truyền key: qua header, rồi qua URL
-async function googleFetch(path, apiKey, options) {
-    options = options || {};
-    const attempts = [
-        { url: `${BASE_URL}${path}`, headers: { "x-goog-api-key": apiKey } },
-        { url: `${BASE_URL}${path}${path.includes("?") ? "&" : "?"}key=${encodeURIComponent(apiKey)}`, headers: {} }
-    ];
-    let last = null;
-    for (const a of attempts) {
-        const r = await fetch(a.url, {
-            method: options.method || "GET",
-            headers: Object.assign({ "Content-Type": "application/json" }, a.headers),
-            body: options.body
-        });
-        const data = await r.json().catch(() => ({}));
-        last = { ok: r.ok, status: r.status, data };
-        if (r.ok) return last;
-        if (r.status !== 401 && r.status !== 403) return last;
+async function callGroq(model, apiKey, messages) {
+    const payload = {
+        model,
+        messages,
+        temperature: 0.7,
+        max_tokens: 1024
+    };
+    // Model gpt-oss có chế độ "suy nghĩ": đặt mức thấp để trả lời nhanh
+    if (model.startsWith("openai/gpt-oss")) {
+        payload.reasoning_effort = "low";
     }
-    return last;
-}
 
-async function callGemini(model, apiKey, contents) {
-    const r = await googleFetch(`/models/${model}:generateContent`, apiKey, {
+    const r = await fetch(GROQ_URL, {
         method: "POST",
-        body: JSON.stringify({
-            systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-            contents,
-            generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
-        })
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + apiKey
+        },
+        body: JSON.stringify(payload)
     });
+    const data = await r.json().catch(() => ({}));
 
     if (!r.ok) {
-        const err = new Error((r.data.error && r.data.error.message) || `HTTP ${r.status}`);
+        const err = new Error((data.error && data.error.message) || `HTTP ${r.status}`);
         err.status = r.status;
         throw err;
     }
 
-    const data = r.data;
-    const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
-    const text = parts.filter(p => !p.thought).map(p => p.text || "").join("").trim();
-
+    const text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content || "").trim();
     if (!text) {
-        const reason = (data.candidates && data.candidates[0] && data.candidates[0].finishReason) ||
-                       (data.promptFeedback && data.promptFeedback.blockReason) || "không rõ";
-        const err = new Error("Model không trả về nội dung (lý do: " + reason + ")");
+        const err = new Error("Model không trả về nội dung");
         err.status = 502;
         throw err;
     }
@@ -88,22 +72,15 @@ export default async function handler(req, res) {
     if (req.method === "GET") {
         const report = {
             co_api_key: !!apiKey,
-            do_dai_key: apiKey.length,
             ky_tu_dau: apiKey ? apiKey.slice(0, 4) + "..." : "(trống)"
         };
         if (apiKey) {
             try {
-                const r = await googleFetch("/models?pageSize=100", apiKey);
-                report.google_chap_nhan_key = r.ok;
-                report.google_tra_loi = r.ok ? "OK - key hợp lệ" : ((r.data.error && r.data.error.message) || ("HTTP " + r.status));
-                if (r.ok && Array.isArray(r.data.models)) {
-                    report.cac_model_flash_dung_duoc = r.data.models
-                        .map(m => m.name.replace("models/", ""))
-                        .filter(n => n.includes("flash"))
-                        .slice(0, 15);
-                }
+                const text = await callGroq(MODELS[0], apiKey, [{ role: "user", content: "Chào bạn, trả lời 1 câu ngắn." }]);
+                report.ket_noi_AI = "OK - hoạt động tốt";
+                report.cau_tra_loi_thu = text;
             } catch (e) {
-                report.google_tra_loi = "Không kết nối được Google: " + e.message;
+                report.ket_noi_AI = "LỖI: " + e.message;
             }
         }
         return res.status(200).json(report);
@@ -114,7 +91,7 @@ export default async function handler(req, res) {
     }
 
     if (!apiKey) {
-        return res.status(500).json({ error: "Chưa thiết lập GEMINI_API_KEY trên Vercel (Settings → Environment Variables)" });
+        return res.status(500).json({ error: "Chưa thiết lập GROQ_API_KEY trên Vercel (Settings → Environment Variables)" });
     }
 
     try {
@@ -127,23 +104,25 @@ export default async function handler(req, res) {
 
         if (!message) return res.status(400).json({ error: "Tin nhắn trống" });
 
-        const contents = history
+        // Chuyển lịch sử từ giao diện sang định dạng của Groq
+        const messages = [{ role: "system", content: SYSTEM_PROMPT }];
+        history
             .filter(m => m && m.parts && m.parts[0] && typeof m.parts[0].text === "string")
-            .map(m => ({
-                role: m.role === "user" ? "user" : "model",
-                parts: [{ text: m.parts[0].text }]
+            .forEach(m => messages.push({
+                role: m.role === "user" ? "user" : "assistant",
+                content: m.parts[0].text
             }));
-        contents.push({ role: "user", parts: [{ text: message }] });
+        messages.push({ role: "user", content: message });
 
         let lastError = null;
         for (const model of MODELS) {
             try {
-                const text = await callGemini(model, apiKey, contents);
+                const text = await callGroq(model, apiKey, messages);
                 return res.status(200).json({ text, model });
             } catch (err) {
                 lastError = err;
                 console.error(`Model ${model} lỗi:`, err.status, err.message);
-                if (err.status === 401 || err.status === 403 || /API key/i.test(err.message)) break;
+                if (err.status === 401) break; // sai key thì dừng luôn
             }
         }
 
