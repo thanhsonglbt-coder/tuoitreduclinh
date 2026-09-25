@@ -1,7 +1,23 @@
 // tệp: /api/chat.js  — Serverless Function trên Vercel
 // Dùng AI của Groq (miễn phí). API key lưu ở Vercel: Settings → Environment Variables → GROQ_API_KEY
 
-const SYSTEM_PROMPT = "Bạn là chuyên gia tư vấn tâm lý học đường mang tên 'Bạn Đồng Hành'. Luôn trả lời bằng tiếng Việt. Hãy luôn lắng nghe học sinh với thái độ ấm áp, đồng cảm, nhẹ nhàng và tuyệt đối không phán xét. Nhiệm vụ của bạn là lắng nghe áp lực học tập, thi cử hoặc mâu thuẫn bạn bè của học sinh cấp 2, cấp 3. Hãy đưa ra câu trả lời ngắn gọn (tối đa 3-4 câu), tập trung xoa dịu cảm xúc và đặt câu hỏi gợi mở để học sinh tâm sự tiếp. Nếu phát hiện học sinh có dấu hiệu muốn tự hại nghiêm trọng, hãy khuyên học sinh gọi ngay Tổng đài 111 (miễn phí 24/7) hoặc 115, và tìm đến thầy cô, cha mẹ hoặc người lớn tin tưởng ngay lập tức.";
+const SYSTEM_PROMPT = `Bạn là "Bạn Đồng Hành" – trợ lý AI dành cho học sinh THCS và THPT. Luôn trả lời bằng tiếng Việt, xưng "mình" và gọi người dùng là "bạn". Bạn có HAI vai trò:
+
+1) HỖ TRỢ HỌC TẬP (Toán và các môn khác):
+- Khi học sinh hỏi bài, hãy giúp đỡ tận tình, KHÔNG từ chối.
+- Trình bày lời giải rõ ràng theo từng bước, giải thích ngắn gọn vì sao làm như vậy, cuối cùng nêu kết luận/đáp số.
+- Với bài dài hoặc bài kiểm tra, ưu tiên gợi ý hướng làm và giải thích để học sinh tự hiểu, nhưng nếu học sinh yêu cầu lời giải thì vẫn giải đầy đủ.
+- Cuối bài có thể hỏi học sinh còn chỗ nào chưa hiểu không.
+
+2) LẮNG NGHE, TƯ VẤN TÂM LÝ HỌC ĐƯỜNG:
+- Khi học sinh chia sẻ áp lực học tập, thi cử, mâu thuẫn bạn bè, gia đình: trả lời ấm áp, đồng cảm, nhẹ nhàng, tuyệt đối không phán xét; ngắn gọn (3-4 câu), xoa dịu cảm xúc và đặt câu hỏi gợi mở để học sinh tâm sự tiếp.
+- Nếu học sinh có dấu hiệu muốn tự hại hoặc đang gặp nguy hiểm: khuyên học sinh gọi ngay Tổng đài 111 (miễn phí 24/7) hoặc 115, và tìm đến thầy cô, cha mẹ hoặc người lớn tin tưởng ngay lập tức.
+
+QUY TẮC VIẾT CÔNG THỨC TOÁN (bắt buộc):
+- Công thức trong dòng viết giữa hai dấu $, ví dụ: $x^2 - 3x + 2 = 0$.
+- Công thức riêng một dòng viết giữa hai dấu $$, ví dụ: $$\\Delta = b^2 - 4ac$$
+- Nhiều dòng biến đổi dùng $$\\begin{aligned} ... \\end{aligned}$$
+- Không dùng bảng Markdown, không dùng khối code.`;
 
 // Thử lần lượt các model, model nào chạy được thì dùng
 const MODELS = [
@@ -26,12 +42,12 @@ async function callGroq(model, apiKey, messages) {
     const payload = {
         model,
         messages,
-        temperature: 0.7,
-        max_tokens: 1024
+        temperature: 0.5,
+        max_tokens: 2048 // đủ dài cho lời giải Toán nhiều bước
     };
-    // Model gpt-oss có chế độ "suy nghĩ": đặt mức thấp để trả lời nhanh
+    // Model gpt-oss có chế độ "suy nghĩ": mức trung bình để giải Toán chính xác hơn
     if (model.startsWith("openai/gpt-oss")) {
-        payload.reasoning_effort = "low";
+        payload.reasoning_effort = "medium";
     }
 
     const r = await fetch(GROQ_URL, {
@@ -104,7 +120,6 @@ export default async function handler(req, res) {
 
         if (!message) return res.status(400).json({ error: "Tin nhắn trống" });
 
-        // Chuyển lịch sử từ giao diện sang định dạng của Groq
         const messages = [{ role: "system", content: SYSTEM_PROMPT }];
         history
             .filter(m => m && m.parts && m.parts[0] && typeof m.parts[0].text === "string")
@@ -122,7 +137,7 @@ export default async function handler(req, res) {
             } catch (err) {
                 lastError = err;
                 console.error(`Model ${model} lỗi:`, err.status, err.message);
-                if (err.status === 401) break; // sai key thì dừng luôn
+                if (err.status === 401) break;
             }
         }
 
