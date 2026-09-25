@@ -100,7 +100,9 @@
             <button class="tab" data-tab="tune">📈 Tối ưu tham số</button>
             <button class="tab" data-tab="data">🗂 Dữ liệu</button>
             <button class="tab" data-tab="dict">📖 Từ điển</button>
+            <button class="tab hidden" data-tab="teachers" id="tabTeachers">👥 Giáo viên</button>
             <a class="tab" href="/doimatkhau.html" style="text-decoration:none">🔑 Đổi mật khẩu</a>
+            <span class="sub" id="whoami" style="margin:0;align-self:center"></span>
             <button class="tab" onclick="logout()">Đăng xuất</button>
         </div>
     </div>
@@ -110,13 +112,59 @@
     <!-- ===== ĐĂNG NHẬP ===== -->
     <section id="loginView" class="login card">
         <h2>Đăng nhập giáo viên</h2>
-        <p class="sub">Nhập mật khẩu giáo viên (TEACHER_PASSWORD đã đặt trên Vercel).</p>
+        <p class="sub">Chọn tên của thầy cô và nhập mật khẩu.</p>
         <form id="loginForm">
+            <label class="sub" style="margin:0 0 4px;display:block">Giáo viên</label>
+            <select id="tcode" style="margin-bottom:10px">
+                <option value="">Đang tải danh sách...</option>
+            </select>
+            <label class="sub" style="margin:0 0 4px;display:block">Mật khẩu</label>
             <input type="password" id="pw" placeholder="Mật khẩu" autocomplete="current-password">
             <div style="margin-top:10px"><button class="btn btn-primary" type="submit" style="width:100%">Đăng nhập</button></div>
         </form>
         <div id="loginMsg"></div>
         <p class="sub" style="margin:12px 0 0;text-align:center"><a href="/doimatkhau.html" style="color:#0284c7">🔑 Đổi mật khẩu</a></p>
+    </section>
+
+    <!-- ===== BẮT BUỘC ĐỔI MẬT KHẨU LẦN ĐẦU ===== -->
+    <section id="mustChangeView" class="login card hidden">
+        <h2>🔑 Đổi mật khẩu lần đầu</h2>
+        <p class="sub" id="mcWho"></p>
+        <p class="sub">Thầy cô đang dùng mật khẩu mặc định. Vì an toàn cho dữ liệu học sinh, hãy đặt mật khẩu riêng (ít nhất 8 ký tự) trước khi sử dụng.</p>
+        <form id="mcForm">
+            <input type="password" id="mcNew" placeholder="Mật khẩu mới" autocomplete="new-password" style="margin-bottom:10px">
+            <input type="password" id="mcNew2" placeholder="Nhập lại mật khẩu mới" autocomplete="new-password">
+            <div style="margin-top:10px"><button class="btn btn-primary" type="submit" style="width:100%">Lưu mật khẩu mới</button></div>
+        </form>
+        <div id="mcMsg"></div>
+        <p class="sub" style="margin:12px 0 0;text-align:center"><a href="#" onclick="logout();return false" style="color:#0284c7">Đăng xuất</a></p>
+    </section>
+
+    <!-- ===== QUẢN LÝ GIÁO VIÊN (quản trị) ===== -->
+    <section id="tab-teachers" class="hidden">
+        <h2>Quản lý giáo viên</h2>
+        <p class="sub">Mỗi giáo viên đăng nhập bằng mã riêng. Tài khoản mới và tài khoản được đặt lại dùng mật khẩu mặc định (biến DEFAULT_TEACHER_PASSWORD trên Vercel) và phải đổi mật khẩu ở lần đăng nhập đầu.</p>
+        <div id="tMsg2"></div>
+        <div class="card">
+            <h3>Thêm giáo viên</h3>
+            <div class="row">
+                <input id="newTName" placeholder="Họ và tên" style="flex:2;min-width:220px" maxlength="80">
+                <select id="newTRole" style="width:auto">
+                    <option value="giao_vien">Giáo viên</option>
+                    <option value="quan_tri">Quản trị</option>
+                </select>
+                <button class="btn btn-primary" onclick="addTeacher()">+ Thêm</button>
+            </div>
+        </div>
+        <div class="card">
+            <h3>Danh sách giáo viên</h3>
+            <div class="table-scroll">
+                <table>
+                    <thead><tr><th>Mã</th><th>Họ và tên</th><th>Vai trò</th><th>Mật khẩu</th><th>Đăng nhập gần nhất</th><th></th></tr></thead>
+                    <tbody id="teachersBody"><tr><td colspan="6">Đang tải...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
     </section>
 
     <!-- ===== TỔNG QUAN ===== -->
@@ -478,8 +526,8 @@ Mai thi Toán lo quá >> Mình ôn rồi >> Cảm ơn bạn, mình đỡ hơn | 
 
 <script>
     /* ================== ĐĂNG NHẬP ================== */
-    let PW = '';
-    try { PW = sessionStorage.getItem('teacherPw') || ''; } catch (e) {}
+    let PW = '', CODE = '', ME = null;
+    try { PW = sessionStorage.getItem('teacherPw') || ''; CODE = sessionStorage.getItem('teacherCode') || ''; } catch (e) {}
 
     const LEVEL_NAME = ['0 · Bình thường', '1 · Căng thẳng nhẹ', '2 · Đáng lo ngại', '3 · Khẩn cấp'];
     const SOURCE_NAME = { tu_khoa: 'Từ khóa', AI: 'AI', ca_hai: 'Cả hai lớp', tich_luy: 'Tích lũy cả cuộc trò chuyện' };
@@ -495,11 +543,12 @@ Mai thi Toán lo quá >> Mình ôn rồi >> Cảm ơn bạn, mình đỡ hơn | 
         const url = '/api/teacher' + (params ? '?' + new URLSearchParams(params) : '');
         const r = await fetch(url, {
             method,
-            headers: Object.assign({ 'X-Teacher-Password': PW }, body ? { 'Content-Type': 'application/json' } : {}),
+            headers: Object.assign({ 'X-Teacher-Password': PW, 'X-Teacher-Code': CODE }, body ? { 'Content-Type': 'application/json' } : {}),
             body: body ? JSON.stringify(body) : undefined
         });
         const data = await r.json().catch(() => ({}));
         if (r.status === 401) { if (PW) logout(data.error); throw new Error(data.error || 'Sai mật khẩu'); }
+        if (r.status === 403 && data.mustChange) { showMustChange(); throw new Error(data.error); }
         if (!r.ok) throw new Error(data.error || ('Lỗi ' + r.status));
         return data;
     }
@@ -507,10 +556,12 @@ Mai thi Toán lo quá >> Mình ôn rồi >> Cảm ơn bạn, mình đỡ hơn | 
     document.getElementById('loginForm').addEventListener('submit', async e => {
         e.preventDefault();
         PW = document.getElementById('pw').value;
+        CODE = document.getElementById('tcode').value;
+        if (!CODE) { notice('loginMsg', 'err', 'Hãy chọn tên giáo viên.'); return; }
         try {
             const d = await api('GET', { action: 'ping' });
-            try { sessionStorage.setItem('teacherPw', PW); } catch (e) {}
-            enterApp(d.db);
+            try { sessionStorage.setItem('teacherPw', PW); sessionStorage.setItem('teacherCode', CODE); } catch (e) {}
+            afterPing(d);
         } catch (err) {
             PW = '';
             notice('loginMsg', 'err', err.message);
@@ -520,10 +571,95 @@ Mai thi Toán lo quá >> Mình ôn rồi >> Cảm ơn bạn, mình đỡ hơn | 
     function logout(msg) {
         PW = '';
         try { sessionStorage.removeItem('teacherPw'); } catch (e) {}
+        ME = null;
+        document.getElementById('whoami').textContent = '';
         document.getElementById('tabs').classList.add('hidden');
         document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
         document.getElementById('loginView').classList.remove('hidden');
         notice('loginMsg', 'err', msg || '');
+    }
+
+    // Tải danh sách giáo viên cho ô đăng nhập
+    async function loadLoginTeachers() {
+        const sel = document.getElementById('tcode');
+        try {
+            const d = await (await fetch('/api/teacher?action=public_teachers')).json();
+            const list = d.teachers || [];
+            sel.innerHTML = '<option value="">— Chọn giáo viên —</option>' +
+                list.map(t => `<option value="${esc(t.code)}">${esc(t.code)} – ${esc(t.name)}</option>`).join('') +
+                '<option value="ADMIN">Quản trị (mật khẩu gốc)</option>';
+            if (d.needDefault) notice('loginMsg', 'info', 'Chưa tạo tài khoản giáo viên: quản trị cần đặt biến DEFAULT_TEACHER_PASSWORD trên Vercel rồi Redeploy.');
+        } catch (e) {
+            sel.innerHTML = '<option value="ADMIN">Quản trị (mật khẩu gốc)</option>';
+        }
+        if (CODE) sel.value = CODE;
+    }
+
+    function afterPing(d) {
+        ME = d;
+        document.getElementById('whoami').textContent = '👤 ' + (d.code === 'ADMIN' ? 'Quản trị' : d.code + ' – ' + d.name);
+        document.getElementById('tabTeachers').classList.toggle('hidden', d.role !== 'quan_tri');
+        if (d.mustChange) showMustChange(); else enterApp(d.db);
+    }
+
+    function showMustChange() {
+        document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+        document.getElementById('tabs').classList.add('hidden');
+        document.getElementById('mustChangeView').classList.remove('hidden');
+        document.getElementById('mcWho').textContent = ME ? 'Tài khoản: ' + ME.code + ' – ' + ME.name : '';
+    }
+
+    document.getElementById('mcForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const a = document.getElementById('mcNew').value, b = document.getElementById('mcNew2').value;
+        if (a.length < 8) return notice('mcMsg', 'err', 'Mật khẩu mới phải có ít nhất 8 ký tự.');
+        if (a !== b) return notice('mcMsg', 'err', 'Hai lần nhập không khớp.');
+        try {
+            await api('POST', null, { action: 'change_password', newPassword: a });
+            PW = a;
+            try { sessionStorage.setItem('teacherPw', PW); } catch (e) {}
+            document.getElementById('mustChangeView').classList.add('hidden');
+            afterPing(await api('GET', { action: 'ping' }));
+        } catch (err) { notice('mcMsg', 'err', err.message); }
+    });
+
+    /* ===== Quản lý giáo viên (quản trị) ===== */
+    async function loadTeachers() {
+        try {
+            const d = await api('GET', { action: 'teachers_list' });
+            if (!d.hasDefault) notice('tMsg2', 'err', 'Chưa đặt biến DEFAULT_TEACHER_PASSWORD trên Vercel nên chưa thêm hoặc đặt lại mật khẩu được.');
+            document.getElementById('teachersBody').innerHTML = d.teachers.length ? d.teachers.map(t => `<tr>
+                <td><b>${esc(t.code)}</b></td><td>${esc(t.name)}</td>
+                <td><select onchange="updateTeacher('${esc(t.code)}', this.value)" style="width:auto"><option value="giao_vien" ${t.role === 'giao_vien' ? 'selected' : ''}>Giáo viên</option><option value="quan_tri" ${t.role === 'quan_tri' ? 'selected' : ''}>Quản trị</option></select></td>
+                <td>${t.mustChange ? '<span class="lv lv2">Mặc định – chưa đổi</span>' : '<span class="lv lv0">Đã đổi</span>'}</td>
+                <td>${t.lastLogin ? esc(new Date(t.lastLogin).toLocaleString('vi-VN')) : '–'}</td>
+                <td style="white-space:nowrap"><button class="btn btn-light" onclick="resetTeacher('${esc(t.code)}')">Đặt lại mật khẩu</button> <button class="btn btn-danger" onclick="deleteTeacher('${esc(t.code)}')">Xóa</button></td></tr>`).join('')
+                : '<tr><td colspan="6">Chưa có giáo viên nào.</td></tr>';
+        } catch (err) { notice('tMsg2', 'err', err.message); }
+    }
+    async function addTeacher() {
+        const name = document.getElementById('newTName').value.trim();
+        if (!name) return;
+        try {
+            const d = await api('POST', null, { action: 'teacher_add', name, role: document.getElementById('newTRole').value });
+            notice('tMsg2', 'ok', `Đã thêm ${name} với mã ${d.code}. Mật khẩu ban đầu là mật khẩu mặc định.`);
+            document.getElementById('newTName').value = '';
+            loadTeachers();
+        } catch (err) { notice('tMsg2', 'err', err.message); }
+    }
+    async function updateTeacher(code, role) {
+        try { await api('POST', null, { action: 'teacher_update', code, role }); notice('tMsg2', 'ok', 'Đã cập nhật vai trò của ' + code + '.'); }
+        catch (err) { notice('tMsg2', 'err', err.message); loadTeachers(); }
+    }
+    async function resetTeacher(code) {
+        if (!confirm('Đặt lại mật khẩu của ' + code + ' về mật khẩu mặc định?')) return;
+        try { await api('POST', null, { action: 'teacher_reset', code }); notice('tMsg2', 'ok', 'Đã đặt lại mật khẩu của ' + code + '. Giáo viên sẽ phải đổi mật khẩu khi đăng nhập.'); loadTeachers(); }
+        catch (err) { notice('tMsg2', 'err', err.message); }
+    }
+    async function deleteTeacher(code) {
+        if (!confirm('Xóa tài khoản ' + code + '?')) return;
+        try { await api('POST', null, { action: 'teacher_delete', code }); loadTeachers(); }
+        catch (err) { notice('tMsg2', 'err', err.message); }
     }
 
     function enterApp(hasDb) {
@@ -537,12 +673,13 @@ Mai thi Toán lo quá >> Mình ôn rồi >> Cảm ơn bạn, mình đỡ hơn | 
     document.querySelectorAll('.tab[data-tab]').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
     function showTab(name) {
         document.querySelectorAll('.tab[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
-        ['overview', 'bookings', 'kb', 'test', 'tune', 'data', 'dict'].forEach(t => document.getElementById('tab-' + t).classList.toggle('hidden', t !== name));
+        ['overview', 'bookings', 'kb', 'test', 'tune', 'data', 'dict', 'teachers'].forEach(t => document.getElementById('tab-' + t).classList.toggle('hidden', t !== name));
         if (name === 'overview') loadStats();
         if (name === 'bookings') loadBookings();
         if (name === 'kb') loadKb();
         if (name === 'data') { loadDatasets(); loadRuns(); }
         if (name === 'dict') loadLexicon();
+        if (name === 'teachers') loadTeachers();
         if (name === 'test' || name === 'tune') fillDatasetSelects();
     }
 
@@ -663,6 +800,7 @@ Mai thi Toán lo quá >> Mình ôn rồi >> Cảm ơn bạn, mình đỡ hơn | 
                     <dt>Thời gian mong muốn</dt><dd>${esc(b.preferred) || '–'}</dd>
                     <dt>Cách liên hệ</dt><dd>${esc(b.contact) || '<i>(tự tra cứu bằng mã)</i>'}</dd>
                     <dt>Lời nhắn</dt><dd>${esc(b.note).replace(/\n/g, '<br>') || '–'}</dd>
+                    ${b.handledBy ? `<dt>Người xử lý</dt><dd>${esc(b.handledBy)}</dd>` : ''}
                 </dl>
                 <div class="edit">
                     <select class="st">${Object.keys(STATUS_NAME).map(s => `<option value="${s}" ${s === b.status ? 'selected' : ''}>${STATUS_NAME[s]}</option>`).join('')}</select>
@@ -1462,8 +1600,9 @@ Mai thi Toán lo quá >> Mình ôn rồi >> Cảm ơn bạn, mình đỡ hơn | 
     document.addEventListener('keydown', e => { if (e.key === 'Enter' && document.activeElement && document.activeElement.id === 'dictTry') tryL1(); });
 
     /* ================== KHỞI ĐỘNG ================== */
-    if (PW) {
-        api('GET', { action: 'ping' }).then(d => enterApp(d.db)).catch(() => logout());
+    loadLoginTeachers();
+    if (PW && CODE) {
+        api('GET', { action: 'ping' }).then(afterPing).catch(() => logout());
     }
 </script>
 </body>

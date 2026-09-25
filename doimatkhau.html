@@ -32,6 +32,9 @@
         <p class="sub">Mật khẩu mới dùng để đăng nhập Trang giáo viên.</p>
 
         <form id="f">
+            <label for="code">Giáo viên</label>
+            <select id="code" style="width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:16px"><option value="">Đang tải...</option></select>
+
             <label for="cur">Mật khẩu hiện tại</label>
             <input type="password" id="cur" autocomplete="current-password" required>
 
@@ -48,8 +51,8 @@
         <div id="msg"></div>
 
         <div class="info">
-            💡 <b>Quên mật khẩu?</b> Mật khẩu gốc (biến <code>TEACHER_PASSWORD</code> trên Vercel) luôn đăng nhập được.
-            Người quản lý website có thể đặt lại mật khẩu gốc trên Vercel rồi Redeploy, sau đó vào trang này để đặt mật khẩu mới.
+            💡 <b>Quên mật khẩu?</b> Nhờ giáo viên quản trị vào Trang giáo viên → tab "Giáo viên" → <b>Đặt lại mật khẩu</b>.
+            Mật khẩu sẽ về mật khẩu mặc định và thầy cô đặt lại mật khẩu mới ở lần đăng nhập sau.
         </div>
 
         <div class="links">
@@ -63,6 +66,18 @@
         // Điền sẵn mật khẩu hiện tại nếu đang đăng nhập ở Trang giáo viên (cùng phiên trình duyệt)
         try { const saved = sessionStorage.getItem('teacherPw'); if (saved) $('cur').value = saved; } catch (e) {}
 
+        (async () => {
+            let saved = '';
+            try { saved = sessionStorage.getItem('teacherCode') || ''; } catch (e) {}
+            try {
+                const d = await (await fetch('/api/teacher?action=public_teachers')).json();
+                $('code').innerHTML = '<option value="">— Chọn giáo viên —</option>' +
+                    (d.teachers || []).map(t => `<option value="${t.code}">${t.code} – ${t.name.replace(/</g, '&lt;')}</option>`).join('') +
+                    '<option value="ADMIN">Quản trị (mật khẩu gốc)</option>';
+            } catch (e) { $('code').innerHTML = '<option value="ADMIN">Quản trị (mật khẩu gốc)</option>'; }
+            if (saved) $('code').value = saved;
+        })();
+
         $('showPw').addEventListener('change', e => {
             ['cur', 'np', 'np2'].forEach(id => $(id).type = e.target.checked ? 'text' : 'password');
         });
@@ -74,7 +89,8 @@
 
         $('f').addEventListener('submit', async e => {
             e.preventDefault();
-            const cur = $('cur').value, np = $('np').value, np2 = $('np2').value;
+            const cur = $('cur').value, np = $('np').value, np2 = $('np2').value, code = $('code').value;
+            if (!code) return show('err', 'Hãy chọn tên giáo viên.');
             if (np.length < 8) return show('err', 'Mật khẩu mới phải có ít nhất 8 ký tự.');
             if (np !== np2) return show('err', 'Hai lần nhập mật khẩu mới không khớp.');
             if (np === cur) return show('err', 'Mật khẩu mới phải khác mật khẩu hiện tại.');
@@ -84,12 +100,12 @@
             try {
                 const r = await fetch('/api/teacher', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Teacher-Password': cur },
+                    headers: { 'Content-Type': 'application/json', 'X-Teacher-Password': cur, 'X-Teacher-Code': code },
                     body: JSON.stringify({ action: 'change_password', newPassword: np })
                 });
                 const d = await r.json().catch(() => ({}));
                 if (!r.ok) throw new Error(d.error || ('Lỗi ' + r.status));
-                try { sessionStorage.setItem('teacherPw', np); } catch (e) {}
+                try { sessionStorage.setItem('teacherPw', np); sessionStorage.setItem('teacherCode', code); } catch (e) {}
                 $('f').reset();
                 show('ok', '✅ Đã đổi mật khẩu thành công. Từ giờ hãy đăng nhập bằng mật khẩu mới.');
             } catch (err) {

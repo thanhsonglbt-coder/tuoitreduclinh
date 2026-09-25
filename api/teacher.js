@@ -1,4 +1,4 @@
-// tệp: /api/teacher.js — API cho Trang giáo viên (cần mật khẩu giáo viên)
+// tệp: /api/teacher.js — API cho Trang giáo viên (đăng nhập bằng mã giáo viên + mật khẩu)
 // Chức năng: đăng nhập, đổi mật khẩu, thống kê, quản lý lịch hẹn, sửa kiến thức trường, kiểm thử bộ phát hiện nguy cơ.
 
 import crypto from "crypto";
@@ -31,40 +31,101 @@ function safeEqual(a, b) {
     return A.length === B.length && crypto.timingSafeEqual(A, B);
 }
 
+/* ===== TÀI KHOẢN GIÁO VIÊN (mỗi giáo viên một mã, ví dụ GV01) =====
+   - Lưu trong cơ sở dữ liệu (hash "teachers"): mã, họ tên, vai trò, mật khẩu đã mã hóa, cờ "phải đổi mật khẩu".
+   - Lần đầu chạy, hệ thống tự tạo danh sách DEFAULT_TEACHERS với mật khẩu mặc định lấy từ biến
+     DEFAULT_TEACHER_PASSWORD trên Vercel (KHÔNG ghi mật khẩu vào code vì repo GitHub công khai).
+   - Giáo viên đăng nhập bằng mật khẩu mặc định sẽ bị yêu cầu đổi mật khẩu trước khi dùng.
+   - Vai trò "quan_tri" được thêm / xóa / đặt lại mật khẩu giáo viên khác.
+   - Mật khẩu GỐC (TEACHER_PASSWORD) vẫn luôn đăng nhập được với quyền quản trị, dùng khi quên mật khẩu. */
+const DEFAULT_TEACHERS = [
+    { code: "GV01", name: "Mai Thị Thanh Hương", role: "giao_vien" },
+    { code: "GV02", name: "Đặng Thị Hồng", role: "giao_vien" },
+    { code: "GV03", name: "Mai Thị Kim Ngọc", role: "giao_vien" },
+    { code: "GV04", name: "Trần Huy Sen", role: "giao_vien" },
+    { code: "GV05", name: "Nguyễn Thành Sơn", role: "quan_tri" }
+];
+const TEACHERS_KEY = "teachers";
+
+function defaultPassword() {
+    return (process.env.DEFAULT_TEACHER_PASSWORD || "").trim();
+}
+function makeHash(pw) {
+    const salt = crypto.randomBytes(16).toString("hex");
+    return salt + ":" + hashPassword(pw, salt);
+}
+function checkHash(pw, stored) {
+    const [salt, hash] = String(stored || "").split(":");
+    return !!(salt && hash && pw && safeEqual(hashPassword(pw, salt), hash));
+}
+
+// Tạo danh sách giáo viên mặc định nếu chưa có (chạy một lần)
+async function ensureTeachers() {
+    if (!redisConfig()) return;
+    const [len] = await redis([["HLEN", TEACHERS_KEY]]);
+    if (Number(len) > 0) return;
+    const pw = defaultPassword();
+    if (!pw) return; // chưa đặt DEFAULT_TEACHER_PASSWORD thì chưa tạo
+    const cmds = DEFAULT_TEACHERS.map(t => ["HSET", TEACHERS_KEY, t.code, JSON.stringify(Object.assign({}, t, { hash: makeHash(pw), mustChange: true, createdAt: Date.now() }))]);
+    await redis(cmds);
+}
+
+async function getTeacher(code) {
+    const [raw] = await redis([["HGET", TEACHERS_KEY, code]]);
+    return raw ? JSON.parse(raw) : null;
+}
+async function saveTeacher(t) {
+    await redis([["HSET", TEACHERS_KEY, t.code, JSON.stringify(t)]]);
+}
+
 async function checkPassword(req) {
     const master = (process.env.TEACHER_PASSWORD || "").trim();
     const given = String(req.headers["x-teacher-password"] || "");
+    const code = String(req.headers["x-teacher-code"] || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
     const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "unknown";
     const failKey = "auth:fail:" + ip.replace(/[^a-zA-Z0-9.:]/g, "").slice(0, 60);
 
-    let stored = null;
+    let stored = null, fails = 0;
     if (redisConfig()) {
         try {
-            const [s, fails] = await redis([["GET", PW_KEY], ["GET", failKey]]);
-            stored = s;
-            if (Number(fails) >= MAX_FAILS) {
-                return { error: "Nhập sai quá nhiều lần. Vui lòng thử lại sau 15 phút.", status: 429 };
-            }
+            const r = await redis([["GET", PW_KEY], ["GET", failKey]]);
+            stored = r[0]; fails = Number(r[1]) || 0;
         } catch (e) {
-            console.error("Không đọc được mật khẩu riêng:", e.message);
+            console.error("Không đọc được dữ liệu đăng nhập:", e.message);
         }
     }
-    if (!master && !stored) return { error: "Chưa đặt mật khẩu TEACHER_PASSWORD trên Vercel", status: 401 };
+    if (fails >= MAX_FAILS) return { error: "Nhập sai quá nhiều lần. Vui lòng thử lại sau 15 phút.", status: 429 };
 
-    let via = null;
-    if (given && stored) {
-        const [salt, hash] = String(stored).split(":");
-        if (salt && hash && safeEqual(hashPassword(given, salt), hash)) via = "rieng";
+    let auth = null;
+    if (code && code !== "ADMIN") {
+        // Đăng nhập bằng mã giáo viên
+        if (redisConfig()) {
+            try {
+                await ensureTeachers();
+                const t = await getTeacher(code);
+                if (t && checkHash(given, t.hash)) {
+                    auth = { ok: true, via: "giao_vien", code: t.code, name: t.name, role: t.role, mustChange: !!t.mustChange };
+                    t.lastLogin = Date.now();
+                    saveTeacher(t).catch(() => {});
+                }
+            } catch (e) { console.error("Lỗi đăng nhập giáo viên:", e.message); }
+        }
+    } else {
+        // Đăng nhập quản trị: mật khẩu gốc hoặc mật khẩu riêng cũ
+        if (!master && !stored) return { error: "Chưa đặt mật khẩu TEACHER_PASSWORD trên Vercel", status: 401 };
+        if (given && stored && checkHash(given, stored)) auth = { ok: true, via: "rieng" };
+        else if (given && master && safeEqual(given, master)) auth = { ok: true, via: "goc" };
+        if (auth) Object.assign(auth, { code: "ADMIN", name: "Quản trị", role: "quan_tri", mustChange: false });
     }
-    if (!via && given && master && safeEqual(given, master)) via = "goc";
 
-    if (!via) {
+    if (!auth) {
         if (redisConfig()) {
             try { await redis([["INCR", failKey], ["EXPIRE", failKey, 900]]); } catch (e) {}
         }
-        return { error: "Sai mật khẩu", status: 401 };
+        return { error: code && code !== "ADMIN" ? "Sai mã giáo viên hoặc mật khẩu" : "Sai mật khẩu", status: 401 };
     }
-    return { ok: true, via, hasCustom: !!stored };
+    auth.hasCustom = !!stored;
+    return auth;
 }
 
 function needDb() {
@@ -113,6 +174,19 @@ export default async function handler(req, res) {
     setCors(res);
     if (req.method === "OPTIONS") return res.status(200).end();
 
+    // Danh sách giáo viên cho ô đăng nhập (chỉ mã + họ tên, không cần mật khẩu)
+    if (req.method === "GET" && req.query && req.query.action === "public_teachers") {
+        try {
+            if (!redisConfig()) return res.status(200).json({ teachers: [] });
+            await ensureTeachers();
+            const [vals] = await redis([["HVALS", TEACHERS_KEY]]);
+            const list = parseAll(vals).map(t => ({ code: t.code, name: t.name })).sort((a, b) => a.code.localeCompare(b.code));
+            return res.status(200).json({ teachers: list, needDefault: !list.length && !defaultPassword() });
+        } catch (e) {
+            return res.status(200).json({ teachers: [], error: e.message });
+        }
+    }
+
     const auth = await checkPassword(req);
     if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
 
@@ -123,7 +197,11 @@ export default async function handler(req, res) {
 
         // Kiểm tra đăng nhập
         if (action === "ping") {
-            return res.status(200).json({ ok: true, db: !!redisConfig(), via: auth.via, hasCustom: auth.hasCustom });
+            return res.status(200).json({ ok: true, db: !!redisConfig(), via: auth.via, hasCustom: auth.hasCustom,
+                code: auth.code, name: auth.name, role: auth.role, mustChange: auth.mustChange });
+        }
+        if (auth.mustChange && action !== "change_password") {
+            return res.status(403).json({ error: "Bạn cần đổi mật khẩu mặc định trước khi sử dụng", mustChange: true });
         }
 
         // Đổi mật khẩu (phải đăng nhập bằng mật khẩu hiện tại mới gọi được)
@@ -133,14 +211,71 @@ export default async function handler(req, res) {
             if (newPw.length < 8) return res.status(400).json({ error: "Mật khẩu mới phải có ít nhất 8 ký tự" });
             if (newPw.length > 100) return res.status(400).json({ error: "Mật khẩu mới quá dài (tối đa 100 ký tự)" });
             if (newPw.trim() !== newPw) return res.status(400).json({ error: "Mật khẩu không được có khoảng trắng ở đầu hoặc cuối" });
-            const salt = crypto.randomBytes(16).toString("hex");
-            await redis([["SET", PW_KEY, salt + ":" + hashPassword(newPw, salt)]]);
+            if (auth.via === "giao_vien") {
+                if (defaultPassword() && newPw === defaultPassword()) return res.status(400).json({ error: "Mật khẩu mới không được trùng mật khẩu mặc định" });
+                const t = await getTeacher(auth.code);
+                if (!t) return res.status(404).json({ error: "Không tìm thấy tài khoản" });
+                t.hash = makeHash(newPw); t.mustChange = false; t.changedAt = Date.now();
+                await saveTeacher(t);
+                return res.status(200).json({ ok: true });
+            }
+            await redis([["SET", PW_KEY, makeHash(newPw)]]);
             return res.status(200).json({ ok: true });
+        }
+
+        /* ===== QUẢN LÝ GIÁO VIÊN (chỉ quản trị) ===== */
+        if (["teachers_list", "teacher_add", "teacher_reset", "teacher_delete", "teacher_update"].includes(action)) {
+            needDb();
+            if (auth.role !== "quan_tri") return res.status(403).json({ error: "Chỉ quản trị mới được quản lý giáo viên" });
+            await ensureTeachers();
+            if (action === "teachers_list") {
+                const [vals] = await redis([["HVALS", TEACHERS_KEY]]);
+                const list = parseAll(vals).map(t => ({ code: t.code, name: t.name, role: t.role, mustChange: !!t.mustChange, lastLogin: t.lastLogin || null, createdAt: t.createdAt }))
+                    .sort((a, b) => a.code.localeCompare(b.code));
+                return res.status(200).json({ teachers: list, hasDefault: !!defaultPassword() });
+            }
+            if (action === "teacher_add") {
+                const pw = defaultPassword();
+                if (!pw) return res.status(400).json({ error: "Chưa đặt biến DEFAULT_TEACHER_PASSWORD trên Vercel" });
+                const name = cleanText(body.name, 80);
+                if (!name) return res.status(400).json({ error: "Chưa nhập họ tên" });
+                const [vals] = await redis([["HVALS", TEACHERS_KEY]]);
+                const nums = parseAll(vals).map(t => parseInt(String(t.code).replace(/\D/g, ""), 10)).filter(n => !isNaN(n));
+                const code = "GV" + String((nums.length ? Math.max(...nums) : 0) + 1).padStart(2, "0");
+                const t = { code, name, role: body.role === "quan_tri" ? "quan_tri" : "giao_vien", hash: makeHash(pw), mustChange: true, createdAt: Date.now() };
+                await saveTeacher(t);
+                return res.status(200).json({ ok: true, code });
+            }
+            const code = cleanText(body.code, 10).toUpperCase();
+            const t = await getTeacher(code);
+            if (!t) return res.status(404).json({ error: "Không tìm thấy giáo viên " + code });
+            if (action === "teacher_reset") {
+                const pw = defaultPassword();
+                if (!pw) return res.status(400).json({ error: "Chưa đặt biến DEFAULT_TEACHER_PASSWORD trên Vercel" });
+                t.hash = makeHash(pw); t.mustChange = true;
+                await saveTeacher(t);
+                return res.status(200).json({ ok: true });
+            }
+            if (action === "teacher_update") {
+                if (body.name !== undefined) t.name = cleanText(body.name, 80) || t.name;
+                if (body.role === "quan_tri" || body.role === "giao_vien") {
+                    if (code === auth.code && body.role !== "quan_tri") return res.status(400).json({ error: "Không thể tự bỏ quyền quản trị của chính mình" });
+                    t.role = body.role;
+                }
+                await saveTeacher(t);
+                return res.status(200).json({ ok: true });
+            }
+            if (action === "teacher_delete") {
+                if (code === auth.code) return res.status(400).json({ error: "Không thể tự xóa tài khoản đang đăng nhập" });
+                await redis([["HDEL", TEACHERS_KEY, code]]);
+                return res.status(200).json({ ok: true });
+            }
         }
 
         // Bỏ mật khẩu riêng, quay về chỉ dùng mật khẩu gốc TEACHER_PASSWORD
         if (action === "reset_password") {
             needDb();
+            if (auth.role !== "quan_tri") return res.status(403).json({ error: "Chỉ quản trị mới được làm việc này" });
             await redis([["DEL", PW_KEY]]);
             return res.status(200).json({ ok: true });
         }
@@ -170,6 +305,7 @@ export default async function handler(req, res) {
             if (STATUSES.includes(body.status)) b.status = body.status;
             if (body.reply !== undefined) b.reply = cleanText(body.reply, 600);
             b.updatedAt = Date.now();
+            b.handledBy = auth.name; // giáo viên xử lý gần nhất
             await redis([["HSET", "bookings", code, JSON.stringify(b)]]);
             return res.status(200).json({ ok: true, booking: b });
         }
