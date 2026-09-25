@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bạn Đồng Hành - Trợ Lý AI Tư Vấn Tâm Lý Học Đường</title>
+
+    <!-- Thư viện KaTeX: hiển thị công thức Toán -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js"></script>
+
     <style>
         :root {
             --soft-blue: #e0f2fe;
@@ -173,6 +178,22 @@
             word-wrap: break-word;
         }
 
+        /* Tin nhắn AI đã định dạng (có công thức) */
+        .msg.rich {
+            white-space: normal;
+        }
+
+        .msg .katex-display {
+            margin: 8px 0;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 2px 0;
+        }
+
+        .msg .katex {
+            font-size: 1.08em;
+        }
+
         .msg.bot {
             background-color: var(--soft-blue);
             color: var(--dark-blue);
@@ -292,6 +313,7 @@
             .grid-layout { grid-template-columns: 1fr; }
             .intro-text { text-align: center; }
             nav { flex-direction: column; gap: 15px; }
+            .msg { max-width: 92%; }
         }
     </style>
 </head>
@@ -329,7 +351,7 @@
                     <div class="msg bot">Chào bạn! Mình là Bạn Đồng Hành. Hôm nay trường lớp hoặc cuộc sống của bạn có điều gì làm bạn áp lực hay mệt mỏi không? Hãy chia sẻ với mình nhé! 😊</div>
                 </div>
                 <form class="chat-input-area" id="chatForm">
-                    <input type="text" id="userInput" placeholder="Nhập tâm sự của bạn tại đây..." required autocomplete="off">
+                    <input type="text" id="userInput" placeholder="Nhập tâm sự của bạn tại đây..." autocomplete="off">
                     <button type="submit" class="btn-send" id="btnSend">Gửi</button>
                 </form>
             </div>
@@ -366,17 +388,73 @@
 
     <script>
         let chatHistory = [];
-        const MAX_HISTORY = 20; // giữ tối đa 20 lượt gần nhất để gửi kèm
+        const MAX_HISTORY = 20;
 
         const form = document.getElementById('chatForm');
         const input = document.getElementById('userInput');
         const btnSend = document.getElementById('btnSend');
         const messagesContainer = document.getElementById('chatMessages');
 
+        function escapeHtml(s) {
+            return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        // Chuyển câu trả lời của AI (có LaTeX, **in đậm**, gạch đầu dòng) thành HTML đẹp
+        function formatBotText(text) {
+            const maths = [];
+            const put = (tex, display) => {
+                maths.push({ tex: tex.trim(), display: display });
+                return (display ? '@@D' : '@@I') + (maths.length - 1) + '@@';
+            };
+
+            let s = String(text);
+
+            // 1. Tách các công thức ra trước
+            s = s.replace(/\$\$([\s\S]+?)\$\$/g, (m, t) => put(t, true));          // $$ ... $$
+            s = s.replace(/\\\[([\s\S]+?)\\\]/g, (m, t) => put(t, true));          // \[ ... \]
+            s = s.replace(/\\\(([\s\S]+?)\\\)/g, (m, t) => put(t, false));         // \( ... \)
+            s = s.replace(/\\begin\{(aligned|align\*?|cases|array|matrix|pmatrix|bmatrix|gathered)\}[\s\S]+?\\end\{\1\}/g,
+                m => put(m.replace(/\\begin\{align\*?\}/, '\\begin{aligned}').replace(/\\end\{align\*?\}/, '\\end{aligned}'), true));
+            s = s.replace(/(^|[^\\$])\$([^$\n]+?)\$/g, (m, pre, t) => pre + put(t, false)); // $ ... $
+
+            // 2. Định dạng chữ thường
+            s = escapeHtml(s);
+            s = s.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
+            s = s.replace(/^#{1,6}\s*(.+)$/gm, '<strong>$1</strong>');
+            s = s.replace(/^\s*[-*]\s+/gm, '• ');
+            s = s.replace(/\n*(@@D\d+@@)\n*/g, '$1');
+            s = s.replace(/\n/g, '<br>');
+
+            // 3. Vẽ công thức bằng KaTeX
+            s = s.replace(/@@([DI])(\d+)@@/g, (m, k, i) => {
+                const it = maths[+i];
+                try {
+                    return katex.renderToString(it.tex, { displayMode: it.display, throwOnError: false, strict: false });
+                } catch (e) {
+                    return escapeHtml(it.tex);
+                }
+            });
+            return s;
+        }
+
         function addMessage(text, type) {
             const div = document.createElement('div');
             div.className = 'msg ' + type;
             div.innerText = text;
+            messagesContainer.appendChild(div);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            return div;
+        }
+
+        function addBotMessage(text) {
+            const div = document.createElement('div');
+            div.className = 'msg bot';
+            if (window.katex) {
+                div.classList.add('rich');
+                div.innerHTML = formatBotText(text);
+            } else {
+                div.innerText = text; // nếu chưa tải được KaTeX thì hiện chữ thường
+            }
             messagesContainer.appendChild(div);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
             return div;
@@ -389,24 +467,18 @@
             const userText = input.value.trim();
             if (!userText) return;
 
-            // 1. Hiển thị tin nhắn người dùng
             addMessage(userText, 'user');
             input.value = '';
             input.disabled = true;
             btnSend.disabled = true;
 
-            // 2. Hiện trạng thái chờ
             const loadingMsg = addMessage('Bạn Đồng Hành đang lắng nghe...', 'bot loading');
 
             try {
-                // 3. Gọi Serverless Function trên Vercel
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: userText,
-                        history: chatHistory
-                    })
+                    body: JSON.stringify({ message: userText, history: chatHistory })
                 });
 
                 let data = {};
@@ -416,11 +488,9 @@
                     throw new Error(data.error || ('Máy chủ trả về lỗi ' + response.status));
                 }
 
-                // 4. Hiển thị câu trả lời
                 loadingMsg.remove();
-                addMessage(data.text, 'bot');
+                addBotMessage(data.text);
 
-                // 5. Lưu lịch sử hội thoại
                 chatHistory.push({ role: 'user', parts: [{ text: userText }] });
                 chatHistory.push({ role: 'model', parts: [{ text: data.text }] });
                 if (chatHistory.length > MAX_HISTORY) {
