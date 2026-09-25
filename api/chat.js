@@ -1,10 +1,6 @@
 // tệp: /api/chat.js  — Serverless Function trên Vercel
 // Gọi trực tiếp REST API của Gemini, không cần thư viện ngoài.
-
-// ===== API KEY =====
-// Key được gắn trực tiếp ở đây (chạy trên máy chủ Vercel, người xem web KHÔNG thấy được).
-// Nếu sau này muốn đổi key: chỉ cần thay chuỗi bên dưới rồi deploy lại.
-const HARDCODED_API_KEY = "AQ.Ab8RN6I6La3MbzUFT8Tt66CHtlLrvZD-SgTykNlQm_BTGBEO5A";
+// API key KHÔNG để trong code. Key được lưu ở Vercel: Settings → Environment Variables → GEMINI_API_KEY
 
 const SYSTEM_PROMPT = "Bạn là chuyên gia tư vấn tâm lý học đường mang tên 'Bạn Đồng Hành'. Hãy luôn lắng nghe học sinh với thái độ ấm áp, đồng cảm, nhẹ nhàng và tuyệt đối không phán xét. Nhiệm vụ của bạn là lắng nghe áp lực học tập, thi cử hoặc mâu thuẫn bạn bè của học sinh cấp 2, cấp 3. Hãy đưa ra câu trả lời ngắn gọn (tối đa 3-4 câu), tập trung xoa dịu cảm xúc và đặt câu hỏi gợi mở để học sinh tâm sự tiếp. Nếu phát hiện học sinh có dấu hiệu muốn tự hại nghiêm trọng, hãy khuyên học sinh gọi ngay Tổng đài 111 (miễn phí 24/7) hoặc 115, và tìm đến thầy cô, cha mẹ hoặc người lớn tin tưởng ngay lập tức.";
 
@@ -18,14 +14,13 @@ const MODELS = [
 
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 
-// Làm sạch key: bỏ khoảng trắng, xuống dòng, dấu ngoặc kép
-function cleanKey(k) {
-    return (k || "").trim().replace(/^GEMINI_API_KEY\s*=\s*/i, "").replace(/^["']+|["']+$/g, "").trim();
-}
-
+// Lấy key từ Vercel và làm sạch (bỏ khoảng trắng, xuống dòng, dấu ngoặc kép)
 function getApiKey() {
-    // Ưu tiên key gắn trong code; nếu để trống thì dùng biến môi trường trên Vercel
-    return cleanKey(HARDCODED_API_KEY) || cleanKey(process.env.GEMINI_API_KEY);
+    return (process.env.GEMINI_API_KEY || "")
+        .trim()
+        .replace(/^GEMINI_API_KEY\s*=\s*/i, "")
+        .replace(/^["']+|["']+$/g, "")
+        .trim();
 }
 
 // Gửi request tới Google, thử 2 cách truyền key: qua header, rồi qua URL
@@ -45,7 +40,6 @@ async function googleFetch(path, apiKey, options) {
         const data = await r.json().catch(() => ({}));
         last = { ok: r.ok, status: r.status, data };
         if (r.ok) return last;
-        // Chỉ thử cách thứ 2 khi lỗi xác thực
         if (r.status !== 401 && r.status !== 403) return last;
     }
     return last;
@@ -120,7 +114,7 @@ export default async function handler(req, res) {
     }
 
     if (!apiKey) {
-        return res.status(500).json({ error: "Chưa có API key" });
+        return res.status(500).json({ error: "Chưa thiết lập GEMINI_API_KEY trên Vercel (Settings → Environment Variables)" });
     }
 
     try {
@@ -149,7 +143,6 @@ export default async function handler(req, res) {
             } catch (err) {
                 lastError = err;
                 console.error(`Model ${model} lỗi:`, err.status, err.message);
-                // Lỗi xác thực key thì dừng luôn, không thử model khác
                 if (err.status === 401 || err.status === 403 || /API key/i.test(err.message)) break;
             }
         }
