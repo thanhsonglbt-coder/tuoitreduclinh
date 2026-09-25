@@ -3,7 +3,6 @@
 
 const SYSTEM_PROMPT = "Bạn là chuyên gia tư vấn tâm lý học đường mang tên 'Bạn Đồng Hành'. Hãy luôn lắng nghe học sinh với thái độ ấm áp, đồng cảm, nhẹ nhàng và tuyệt đối không phán xét. Nhiệm vụ của bạn là lắng nghe áp lực học tập, thi cử hoặc mâu thuẫn bạn bè của học sinh cấp 2, cấp 3. Hãy đưa ra câu trả lời ngắn gọn (tối đa 3-4 câu), tập trung xoa dịu cảm xúc và đặt câu hỏi gợi mở để học sinh tâm sự tiếp. Nếu phát hiện học sinh có dấu hiệu muốn tự hại nghiêm trọng, hãy khuyên học sinh gọi ngay Tổng đài 111 (miễn phí 24/7) hoặc 115, và tìm đến thầy cô, cha mẹ hoặc người lớn tin tưởng ngay lập tức.";
 
-// Danh sách model thử lần lượt. Có thể đặt biến môi trường GEMINI_MODEL trên Vercel để ưu tiên model khác.
 const MODELS = [
     process.env.GEMINI_MODEL,
     "gemini-3.5-flash",
@@ -12,29 +11,29 @@ const MODELS = [
     "gemini-3.1-flash-lite"
 ].filter(Boolean);
 
+// Làm sạch API key: bỏ khoảng trắng, xuống dòng, dấu ngoặc kép, tiền tố "GEMINI_API_KEY="
+function getApiKey() {
+    let key = process.env.GEMINI_API_KEY || "";
+    key = key.trim().replace(/^GEMINI_API_KEY\s*=\s*/i, "").replace(/^["']+|["']+$/g, "").trim();
+    return key;
+}
+
 async function callGemini(model, apiKey, contents) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
     const response = await fetch(url, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": apiKey
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
             contents,
-            generationConfig: {
-                temperature: 0.7,
-                maxOutputTokens: 1024 // đủ chỗ cho phần "suy nghĩ" của model mới + câu trả lời
-            }
+            generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
         })
     });
 
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-        const msg = (data.error && data.error.message) || `HTTP ${response.status}`;
-        const err = new Error(msg);
+        const err = new Error((data.error && data.error.message) || `HTTP ${response.status}`);
         err.status = response.status;
         throw err;
     }
@@ -54,17 +53,44 @@ async function callGemini(model, apiKey, contents) {
 
 export default async function handler(req, res) {
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-    if (req.method === "OPTIONS") {
-        return res.status(200).end();
+    if (req.method === "OPTIONS") return res.status(200).end();
+
+    const apiKey = getApiKey();
+
+    // ===== TRANG TỰ KIỂM TRA: mở /api/chat trên trình duyệt =====
+    if (req.method === "GET") {
+        const report = {
+            co_api_key: !!apiKey,
+            do_dai_key: apiKey.length,
+            bat_dau_bang_AIza: apiKey.startsWith("AIza"),
+            ky_tu_dau: apiKey ? apiKey.slice(0, 4) + "..." : "(trống)"
+        };
+        if (apiKey) {
+            try {
+                const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`);
+                const d = await r.json().catch(() => ({}));
+                report.google_chap_nhan_key = r.ok;
+                report.google_tra_loi = r.ok ? "OK - key hợp lệ" : ((d.error && d.error.message) || ("HTTP " + r.status));
+                if (r.ok && Array.isArray(d.models)) {
+                    report.cac_model_flash_dung_duoc = d.models
+                        .map(m => m.name.replace("models/", ""))
+                        .filter(n => n.includes("flash"))
+                        .slice(0, 15);
+                }
+            } catch (e) {
+                report.google_tra_loi = "Không kết nối được Google: " + e.message;
+            }
+        }
+        return res.status(200).json(report);
     }
+
     if (req.method !== "POST") {
         return res.status(405).json({ error: "Chương trình chỉ hỗ trợ phương thức POST" });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
         return res.status(500).json({ error: "Hệ thống chưa thiết lập cấu hình GEMINI_API_KEY trên Vercel" });
     }
@@ -77,11 +103,8 @@ export default async function handler(req, res) {
         const message = ((body && body.message) || "").toString().trim();
         const history = Array.isArray(body && body.history) ? body.history : [];
 
-        if (!message) {
-            return res.status(400).json({ error: "Tin nhắn trống" });
-        }
+        if (!message) return res.status(400).json({ error: "Tin nhắn trống" });
 
-        // Chuẩn hóa lịch sử hội thoại
         const contents = history
             .filter(m => m && m.parts && m.parts[0] && typeof m.parts[0].text === "string")
             .map(m => ({
@@ -90,7 +113,6 @@ export default async function handler(req, res) {
             }));
         contents.push({ role: "user", parts: [{ text: message }] });
 
-        // Thử lần lượt từng model, model nào chạy được thì dùng
         let lastError = null;
         for (const model of MODELS) {
             try {
@@ -99,8 +121,8 @@ export default async function handler(req, res) {
             } catch (err) {
                 lastError = err;
                 console.error(`Model ${model} lỗi:`, err.status, err.message);
-                // Sai API key (400/401) thì dừng luôn, không thử model khác
-                if (err.status === 401 || /API key/i.test(err.message)) break;
+                // Lỗi xác thực key thì dừng luôn, không thử model khác
+                if (err.status === 401 || err.status === 403 || /API key/i.test(err.message)) break;
             }
         }
 
