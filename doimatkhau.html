@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đổi mật khẩu giáo viên - Bạn Đồng Hành</title>
+    <meta name="robots" content="noindex">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #f8fafc; color: #1e293b; line-height: 1.5; padding: 16px; }
+        .card { max-width: 440px; margin: 40px auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 24px; }
+        h1 { font-size: 22px; color: #0c4a6e; margin-bottom: 6px; }
+        .sub { color: #64748b; font-size: 14px; margin-bottom: 18px; }
+        label { display: block; font-weight: 600; font-size: 14px; margin: 12px 0 4px; }
+        input { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; }
+        .show { display: flex; gap: 6px; align-items: center; font-size: 14px; color: #64748b; margin-top: 10px; font-weight: 400; }
+        .show input { width: auto; }
+        .btn { width: 100%; margin-top: 16px; background: #0284c7; color: #fff; border: none; border-radius: 10px; padding: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .btn:hover { background: #0c4a6e; }
+        .btn:disabled { opacity: .6; cursor: not-allowed; }
+        .notice { font-size: 14px; padding: 10px 12px; border-radius: 8px; margin-top: 14px; }
+        .ok { background: #ecfdf5; color: #065f46; }
+        .err { background: #fee2e2; color: #991b1b; }
+        .info { background: #f0f9ff; color: #0c4a6e; font-size: 13px; padding: 10px 12px; border-radius: 8px; margin-top: 18px; }
+        a { color: #0284c7; }
+        .links { margin-top: 16px; font-size: 14px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔑 Đổi mật khẩu giáo viên</h1>
+        <p class="sub">Mật khẩu mới dùng để đăng nhập Trang giáo viên.</p>
+
+        <form id="f">
+            <label for="cur">Mật khẩu hiện tại</label>
+            <input type="password" id="cur" autocomplete="current-password" required>
+
+            <label for="np">Mật khẩu mới <span style="font-weight:400;color:#64748b">(ít nhất 8 ký tự)</span></label>
+            <input type="password" id="np" autocomplete="new-password" minlength="8" required>
+
+            <label for="np2">Nhập lại mật khẩu mới</label>
+            <input type="password" id="np2" autocomplete="new-password" minlength="8" required>
+
+            <label class="show"><input type="checkbox" id="showPw"> Hiện mật khẩu</label>
+
+            <button class="btn" type="submit" id="btn">Đổi mật khẩu</button>
+        </form>
+        <div id="msg"></div>
+
+        <div class="info">
+            💡 <b>Quên mật khẩu?</b> Mật khẩu gốc (biến <code>TEACHER_PASSWORD</code> trên Vercel) luôn đăng nhập được.
+            Người quản lý website có thể đặt lại mật khẩu gốc trên Vercel rồi Redeploy, sau đó vào trang này để đặt mật khẩu mới.
+        </div>
+
+        <div class="links">
+            <a href="/giaovien.html">← Về Trang giáo viên</a>
+        </div>
+    </div>
+
+    <script>
+        const $ = id => document.getElementById(id);
+
+        // Điền sẵn mật khẩu hiện tại nếu đang đăng nhập ở Trang giáo viên (cùng phiên trình duyệt)
+        try { const saved = sessionStorage.getItem('teacherPw'); if (saved) $('cur').value = saved; } catch (e) {}
+
+        $('showPw').addEventListener('change', e => {
+            ['cur', 'np', 'np2'].forEach(id => $(id).type = e.target.checked ? 'text' : 'password');
+        });
+
+        function show(type, text) {
+            $('msg').innerHTML = '<div class="notice ' + type + '"></div>';
+            $('msg').firstChild.textContent = text;
+        }
+
+        $('f').addEventListener('submit', async e => {
+            e.preventDefault();
+            const cur = $('cur').value, np = $('np').value, np2 = $('np2').value;
+            if (np.length < 8) return show('err', 'Mật khẩu mới phải có ít nhất 8 ký tự.');
+            if (np !== np2) return show('err', 'Hai lần nhập mật khẩu mới không khớp.');
+            if (np === cur) return show('err', 'Mật khẩu mới phải khác mật khẩu hiện tại.');
+
+            $('btn').disabled = true;
+            $('btn').textContent = 'Đang đổi...';
+            try {
+                const r = await fetch('/api/teacher', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Teacher-Password': cur },
+                    body: JSON.stringify({ action: 'change_password', newPassword: np })
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok) throw new Error(d.error || ('Lỗi ' + r.status));
+                try { sessionStorage.setItem('teacherPw', np); } catch (e) {}
+                $('f').reset();
+                show('ok', '✅ Đã đổi mật khẩu thành công. Từ giờ hãy đăng nhập bằng mật khẩu mới.');
+            } catch (err) {
+                show('err', err.message);
+            } finally {
+                $('btn').disabled = false;
+                $('btn').textContent = 'Đổi mật khẩu';
+            }
+        });
+    </script>
+</body>
+</html>
