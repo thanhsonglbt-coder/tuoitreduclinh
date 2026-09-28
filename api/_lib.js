@@ -542,10 +542,70 @@ export function weekInfo(ms = Date.now()) {
 const TTL = String(400 * 86400); // giữ thống kê ~13 tháng
 
 // Ghi thống kê ẩn danh: chỉ chủ đề, mức nguy cơ, mã cuộc trò chuyện ngẫu nhiên. KHÔNG lưu nội dung tin nhắn.
+export function safeCidOf(cid) {
+    return String(cid || "unknown").replace(/[^a-zA-Z0-9-]/g, "").slice(0, 40) || "unknown";
+}
+
+// Mức cảnh báo cao nhất của một cuộc trò chuyện trong 2 giờ gần đây (0, 2 hoặc 3).
+// Dùng để đo "sau cảnh báo, học sinh có bước tiếp sang gặp người thật không" mà không cần biết học sinh là ai.
+export async function getAlertLevel(cid) {
+    if (!redisConfig() || !cid) return 0;
+    const c = safeCidOf(cid);
+    const [l3, l2] = await redis([["GET", `alert3:${c}`], ["GET", `alert2:${c}`]]);
+    return l3 ? 3 : l2 ? 2 : 0;
+}
+
+// Đếm một hành động sau cảnh báo (mỗi cuộc trò chuyện chỉ tính 1 lần cho mỗi loại hành động)
+export const FOLLOWUP_ACTIONS = {
+    call111: "Bấm gọi 111", call115: "Bấm gọi 115", safe_yes: "Trả lời: đang an toàn", safe_no: "Trả lời: chưa an toàn",
+    contact_sent: "Tự nguyện để lại liên lạc", booking_after: "Đặt lịch sau cảnh báo"
+};
+export async function countFollowup(cid, action) {
+    if (!redisConfig() || !FOLLOWUP_ACTIONS[action]) return false;
+    const c = safeCidOf(cid);
+    const [ok] = await redis([["SET", `fu:${c}:${action}`, "1", "NX", "EX", "7200"]]);
+    if (ok !== "OK") return false;
+    const wk = weekInfo().key;
+    await redis([["HINCRBY", `stats:${wk}:act`, action, 1], ["EXPIRE", `stats:${wk}:act`, TTL]]);
+    return true;
+}
+
+/* ---------- Báo động Telegram cho giáo viên tư vấn (không kèm danh tính, không kèm nội dung tin nhắn) ----------
+   Biến môi trường: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID (nhiều người nhận: cách nhau dấu phẩy) */
+export function telegramConfig() {
+    const token = (process.env.TELEGRAM_BOT_TOKEN || "").trim();
+    const chats = (process.env.TELEGRAM_CHAT_ID || "").split(",").map(s => s.trim()).filter(Boolean);
+    return token && chats.length ? { token, chats } : null;
+}
+export async function sendTelegram(text) {
+    const cfg = telegramConfig();
+    if (!cfg) return { sent: 0, error: "Chưa cấu hình TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID" };
+    let sent = 0, lastErr = "";
+    await Promise.all(cfg.chats.map(async chat_id => {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 4000);
+        try {
+            const r = await fetch(`https://api.telegram.org/bot${cfg.token}/sendMessage`, {
+                method: "POST", headers: { "Content-Type": "application/json" }, signal: ctrl.signal,
+                body: JSON.stringify({ chat_id, text, disable_web_page_preview: true })
+            });
+            const d = await r.json().catch(() => ({}));
+            if (r.ok && d.ok) sent++; else lastErr = d.description || ("HTTP " + r.status);
+        } catch (e) { lastErr = e.name === "AbortError" ? "Hết thời gian chờ" : e.message; }
+        finally { clearTimeout(timer); }
+    }));
+    return { sent, error: sent ? "" : lastErr };
+}
+export function vnTime(ms = Date.now()) {
+    const d = new Date(ms + 7 * 3600000);
+    const p = x => String(x).padStart(2, "0");
+    return `${p(d.getUTCHours())}:${p(d.getUTCMinutes())} ngày ${p(d.getUTCDate())}/${p(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
+}
+
 export async function logEvent({ cid, level, topic, source }) {
     if (!redisConfig()) return;
     const wk = weekInfo().key;
-    const safeCid = String(cid || "unknown").replace(/[^a-zA-Z0-9-]/g, "").slice(0, 40) || "unknown";
+    const safeCid = safeCidOf(cid);
     const cmds = [
         ["HINCRBY", `stats:${wk}:topic`, topic, 1],
         ["HINCRBY", `stats:${wk}:level`, level, 1],
@@ -559,6 +619,12 @@ export async function logEvent({ cid, level, topic, source }) {
         cmds.push(["EXPIRE", `stats:${wk}:flag`, TTL]);
         cmds.push(["LPUSH", "alerts", JSON.stringify({ t: Date.now(), level, topic, source, cid: safeCid.slice(0, 6) })]);
         cmds.push(["LTRIM", "alerts", 0, 299]);
+        cmds.push(["SET", `alert2:${safeCid}`, "1", "EX", "7200"]);
+    }
+    if (level >= 3) {
+        cmds.push(["SADD", `stats:${wk}:flag3`, safeCid]);
+        cmds.push(["EXPIRE", `stats:${wk}:flag3`, TTL]);
+        cmds.push(["SET", `alert3:${safeCid}`, "1", "EX", "7200"]);
     }
     await redis(cmds);
 }

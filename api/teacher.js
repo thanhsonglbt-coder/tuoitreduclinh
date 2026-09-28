@@ -6,7 +6,8 @@ import {
     redis, redisConfig, hashToObject, weekInfo, setCors, readBody, cleanText,
     detectKeywords, classifyAI, combineRisk, getKnowledge, DEFAULT_KNOWLEDGE, TOPICS,
     LEXICON, LEXICON_V2_EXTRA, getCustomLexicon, invalidateCustomLexicon, normalizeEntry,
-    mlTrain, mlPredict, mlTopWords, getMlModel, invalidateMlModel
+    mlTrain, mlPredict, mlTopWords, getMlModel, invalidateMlModel,
+    telegramConfig, sendTelegram, vnTime, FOLLOWUP_ACTIONS
 } from "./_lib.js";
 
 // Chia dữ liệu cố định (cùng câu luôn vào cùng phần) để kết quả huấn luyện lặp lại được
@@ -36,7 +37,7 @@ const MAX_RUNS = 60;      // số lần kiểm thử được lưu
 const newId = () => crypto.randomBytes(5).toString("hex");
 const parseAll = vals => (vals || []).map(v => { try { return JSON.parse(v); } catch (e) { return null; } }).filter(Boolean);
 
-const STATUSES = ["moi", "da_hen", "da_gap", "huy"];
+const STATUSES = ["moi", "da_hen", "da_lien_he", "da_gap", "huy"];
 
 /* ===== MẬT KHẨU GIÁO VIÊN =====
    - Mật khẩu GỐC: biến TEACHER_PASSWORD trên Vercel. Luôn đăng nhập được, dùng để khôi phục khi quên.
@@ -159,37 +160,50 @@ async function getStats(weeks) {
     needDb();
     const list = [];
     for (let i = weeks - 1; i >= 0; i--) list.push(weekInfo(Date.now() - i * 7 * 86400000));
+    const K = 6; // số lệnh cho mỗi tuần
     const cmds = [];
     for (const w of list) {
         cmds.push(["HGETALL", `stats:${w.key}:topic`]);
         cmds.push(["HGETALL", `stats:${w.key}:level`]);
         cmds.push(["SCARD", `stats:${w.key}:conv`]);
         cmds.push(["SCARD", `stats:${w.key}:flag`]);
+        cmds.push(["SCARD", `stats:${w.key}:flag3`]);
+        cmds.push(["HGETALL", `stats:${w.key}:act`]);
     }
     cmds.push(["LRANGE", "alerts", 0, 99]);
     cmds.push(["HVALS", "bookings"]);
     const r = await redis(cmds);
+    const bookings = (r[list.length * K + 1] || []).map(s => { try { return JSON.parse(s); } catch (e) { return null; } }).filter(Boolean);
 
     const out = list.map((w, i) => {
-        const topicsRaw = hashToObject(r[i * 4]);
-        const levelsRaw = hashToObject(r[i * 4 + 1]);
+        const topicsRaw = hashToObject(r[i * K]);
+        const levelsRaw = hashToObject(r[i * K + 1]);
+        const actRaw = hashToObject(r[i * K + 5]);
         const topics = {};
         for (const k of Object.keys(TOPICS)) topics[k] = Number(topicsRaw[k] || 0);
         const levels = [0, 1, 2, 3].map(l => Number(levelsRaw[l] || 0));
+        const followup = {};
+        for (const k of Object.keys(FOLLOWUP_ACTIONS)) followup[k] = Number(actRaw[k] || 0);
+        // Lịch hẹn/yêu cầu liên hệ tạo trong tuần này, đến sau cảnh báo, và đã được gặp/liên hệ
+        const wb = bookings.filter(b => b.fromAlert >= 2 && weekInfo(b.t).key === w.key);
+        followup.reached = wb.filter(b => b.status === "da_gap" || b.status === "da_lien_he").length;
         return {
             key: w.key, label: w.label, topics, levels,
             messages: levels.reduce((a, b) => a + b, 0),
-            conversations: Number(r[i * 4 + 2] || 0),
-            flagged: Number(r[i * 4 + 3] || 0)
+            conversations: Number(r[i * K + 2] || 0),
+            flagged: Number(r[i * K + 3] || 0),
+            flagged3: Number(r[i * K + 4] || 0),
+            followup
         };
     });
-    const alerts = (r[list.length * 4] || []).map(s => { try { return JSON.parse(s); } catch (e) { return null; } }).filter(Boolean);
-    const bookings = (r[list.length * 4 + 1] || []).map(s => { try { return JSON.parse(s); } catch (e) { return null; } }).filter(Boolean);
+    const alerts = (r[list.length * K] || []).map(s => { try { return JSON.parse(s); } catch (e) { return null; } }).filter(Boolean);
     return {
         weeks: out,
         alerts,
         bookingsNew: bookings.filter(b => b.status === "moi").length,
-        topicNames: TOPICS
+        urgentNew: bookings.filter(b => b.status === "moi" && b.urgent).length,
+        topicNames: TOPICS,
+        followupNames: FOLLOWUP_ACTIONS
     };
 }
 
@@ -304,6 +318,18 @@ export default async function handler(req, res) {
         }
 
         // Thống kê
+        // Báo động Telegram: xem trạng thái (mọi giáo viên), gửi thử (quản trị)
+        if (action === "telegram_status") {
+            const cfg = telegramConfig();
+            return res.status(200).json({ configured: !!cfg, recipients: cfg ? cfg.chats.length : 0 });
+        }
+        if (action === "telegram_test") {
+            if (auth.role !== "quan_tri") return res.status(403).json({ error: "Chỉ quản trị mới được gửi thử" });
+            const r = await sendTelegram(`✅ Tin nhắn thử từ Bạn Đồng Hành (${vnTime()}), do ${auth.name} gửi. Thầy cô nhận được tin này nghĩa là báo động mức 3 đã hoạt động.`);
+            if (!r.sent) return res.status(400).json({ error: "Chưa gửi được: " + r.error });
+            return res.status(200).json({ ok: true, sent: r.sent });
+        }
+
         if (action === "stats") {
             const weeks = Math.min(26, Math.max(1, parseInt(q.weeks, 10) || 8));
             return res.status(200).json(await getStats(weeks));
@@ -314,7 +340,8 @@ export default async function handler(req, res) {
             needDb();
             const [vals] = await redis([["HVALS", "bookings"]]);
             const list = (vals || []).map(s => { try { return JSON.parse(s); } catch (e) { return null; } })
-                .filter(Boolean).sort((a, b) => b.t - a.t);
+                .filter(Boolean)
+                .sort((a, b) => ((b.urgent && b.status === "moi") - (a.urgent && a.status === "moi")) || (b.t - a.t));
             return res.status(200).json({ bookings: list, topicNames: TOPICS });
         }
 
