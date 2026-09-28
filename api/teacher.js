@@ -5,8 +5,31 @@ import crypto from "crypto";
 import {
     redis, redisConfig, hashToObject, weekInfo, setCors, readBody, cleanText,
     detectKeywords, classifyAI, combineRisk, getKnowledge, DEFAULT_KNOWLEDGE, TOPICS,
-    LEXICON, LEXICON_V2_EXTRA, getCustomLexicon, invalidateCustomLexicon, normalizeEntry
+    LEXICON, LEXICON_V2_EXTRA, getCustomLexicon, invalidateCustomLexicon, normalizeEntry,
+    mlTrain, mlPredict, mlTopWords, getMlModel, invalidateMlModel
 } from "./_lib.js";
+
+// Chia dữ liệu cố định (cùng câu luôn vào cùng phần) để kết quả huấn luyện lặp lại được
+function stableBucket(text) {
+    let h = 2166136261;
+    for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0) % 100;
+}
+function evalModel(model, items) {
+    const cm = [0, 1, 2, 3].map(() => [0, 0, 0, 0]);
+    let exact = 0, tp = 0, fn = 0, fp = 0, tn = 0;
+    const mistakes = [];
+    for (const it of items) {
+        const p = mlPredict(model, it.text).level;
+        cm[it.label][p]++;
+        if (p === it.label) exact++;
+        const a = it.label >= 2, b = p >= 2;
+        if (a && b) tp++; else if (a) fn++; else if (b) fp++; else tn++;
+        if (p !== it.label && mistakes.length < 30) mistakes.push({ text: it.text, label: it.label, pred: p });
+    }
+    const n = items.length;
+    return { n, exact: n ? exact / n : null, sens: tp + fn ? tp / (tp + fn) : null, fpr: fp + tn ? fp / (fp + tn) : null, cm, mistakes };
+}
 
 const MAX_ITEMS = 2000;   // số dòng tối đa của một bộ dữ liệu
 const MAX_RUNS = 60;      // số lần kiểm thử được lưu
@@ -338,12 +361,15 @@ export default async function handler(req, res) {
             const context = Array.isArray(body.context) ? body.context.slice(-4).map(x => cleanText(x, 2000)).filter(Boolean) : [];
             const l1 = detectKeywords(message, 2, await getCustomLexicon());
             const l1v1 = detectKeywords(message, 1); // bản gốc, để so sánh trước/sau cải tiến
+            const mlState = await getMlModel();
+            const ml = mlState.model ? mlPredict(mlState.model, message) : null;
             let l2 = null, l2Error = null;
             try { l2 = await classifyAI(message, context); } catch (e) { l2Error = e.message; }
             const combined = combineRisk(l1.level, l2 ? l2.level : null, 0);
             return res.status(200).json({
                 l1: { level: l1.level, matches: l1.matches, ms: l1.ms },
                 l1v1: { level: l1v1.level, matches: l1v1.matches },
+                ml: ml ? { level: ml.level, prob: ml.prob } : null,
                 l2: l2 ? { level: l2.level, topic: l2.topic, reason: l2.reason, model: l2.model, ms: l2.ms } : null,
                 l2Error,
                 combined: combined.messageLevel
@@ -458,6 +484,73 @@ export default async function handler(req, res) {
             invalidateCustomLexicon();
             return res.status(200).json({ ok: true });
         }
+        /* ===== MÔ HÌNH HỌC MÁY DO HỌC SINH HUẤN LUYỆN ===== */
+        if (action === "ml_status") {
+            const st = await getMlModel(true);
+            if (!st.model) return res.status(200).json({ exists: false, active: false });
+            return res.status(200).json({ exists: true, active: st.active, meta: st.model.meta, V: st.model.V, n: st.model.n, top: mlTopWords(st.model, 12) });
+        }
+        if (action === "ml_train") {
+            needDb();
+            const trainIds = (Array.isArray(body.trainIds) ? body.trainIds : []).slice(0, 10).map(x => cleanText(x, 20));
+            const testId = cleanText(body.testId, 20);
+            const testPct = Math.min(50, Math.max(0, parseInt(body.testPct, 10) || 0));
+            if (!trainIds.length) return res.status(400).json({ error: "Hãy chọn ít nhất một bộ dữ liệu để huấn luyện" });
+            const ids = [...new Set(trainIds.concat(testId ? [testId] : []))];
+            const raws = await redis(ids.map(id => ["HGET", "datasets", id]));
+            const byId = {};
+            ids.forEach((id, i) => { if (raws[i]) byId[id] = JSON.parse(raws[i]); });
+            const labeled = ds => (ds && ds.type === "cau" ? ds.items : []).filter(it => it.label !== null && it.label >= 0 && it.label <= 3);
+            let train = [], test = [];
+            for (const id of trainIds) {
+                for (const it of labeled(byId[id])) {
+                    if (!testId && testPct && stableBucket(it.text) < testPct) test.push(it); else train.push(it);
+                }
+            }
+            if (testId) {
+                const trainTexts = new Set(train.map(it => it.text.trim().toLowerCase()));
+                test = labeled(byId[testId]).filter(it => !trainTexts.has(it.text.trim().toLowerCase()));
+            }
+            if (train.length < 20) return res.status(400).json({ error: "Cần ít nhất 20 câu có nhãn để huấn luyện (hiện có " + train.length + ")" });
+            const t0 = Date.now();
+            const model = mlTrain(train);
+            const trainMs = Date.now() - t0;
+            const evalTrain = evalModel(model, train);
+            const evalTest = test.length ? evalModel(model, test) : null;
+            model.meta = {
+                trainedAt: Date.now(), trainedBy: auth.name, trainMs,
+                trainSets: trainIds.map(id => byId[id] ? byId[id].name : id),
+                testSet: testId ? (byId[testId] ? byId[testId].name : testId) : (testPct ? "tách " + testPct + "% từ dữ liệu huấn luyện" : "không có"),
+                nTrain: train.length, nTest: test.length,
+                classCount: model.classCount,
+                train: { exact: evalTrain.exact, sens: evalTrain.sens, fpr: evalTrain.fpr },
+                test: evalTest ? { exact: evalTest.exact, sens: evalTest.sens, fpr: evalTest.fpr, cm: evalTest.cm } : null
+            };
+            const keys = Object.keys(model.vocab);
+            if (keys.length > 30000) return res.status(400).json({ error: "Bộ dữ liệu quá lớn cho gói miễn phí" });
+            await redis([["SET", "ml:model", JSON.stringify(model)]]);
+            invalidateMlModel();
+            return res.status(200).json({ ok: true, meta: model.meta, V: model.V, top: mlTopWords(model, 12), mistakes: evalTest ? evalTest.mistakes : [] });
+        }
+        if (action === "ml_activate") {
+            needDb();
+            await redis([["SET", "ml:active", body.active ? "1" : "0"]]);
+            invalidateMlModel();
+            return res.status(200).json({ ok: true });
+        }
+        if (action === "ml_delete") {
+            needDb();
+            await redis([["DEL", "ml:model"], ["SET", "ml:active", "0"]]);
+            invalidateMlModel();
+            return res.status(200).json({ ok: true });
+        }
+        if (action === "ml_predict") {
+            const st = await getMlModel();
+            if (!st.model) return res.status(400).json({ error: "Chưa có mô hình. Hãy huấn luyện trước." });
+            const message = cleanText(body.message, 2000);
+            return res.status(200).json(mlPredict(st.model, message));
+        }
+
         // Thử nhanh bộ lọc lớp 1 (không gọi AI)
         if (action === "l1_test") {
             const message = cleanText(body.message, 2000);

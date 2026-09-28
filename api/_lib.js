@@ -271,6 +271,96 @@ export function detectKeywords(text, version = 2, custom = []) {
 }
 
 /* =====================================================================
+   PHẦN 2B. MÔ HÌNH HỌC MÁY DO HỌC SINH TỰ HUẤN LUYỆN (Naive Bayes đa thức)
+   - Học từ bộ dữ liệu câu có nhãn 0–3 do nhóm tự viết (kho dữ liệu trên Trang giáo viên).
+   - Đặc trưng: từ đơn + cặp từ liền nhau (unigram + bigram) sau khi chuẩn hóa như lớp 1.
+   - Công thức: chọn mức c lớn nhất theo
+       log P(c) + Σ log P(từ | c),   P(từ | c) = (số lần từ xuất hiện ở mức c + α) / (tổng số từ ở mức c + α·V)
+     với α = 1 (làm trơn Laplace), V = số từ khác nhau trong bộ dữ liệu.
+   - Chạy ngay trên máy chủ, không gọi AI bên ngoài, không tốn phí.
+   ===================================================================== */
+export function mlTokens(text) {
+    let raw = String(text || "");
+    for (const [re, rep] of EMOJI_MAP) raw = raw.replace(re, rep);
+    const words = joinSpacedLetters(normalizePlain(raw)).trim().split(" ").filter(Boolean);
+    const feats = words.slice();
+    for (let i = 0; i + 1 < words.length; i++) feats.push(words[i] + "_" + words[i + 1]);
+    return feats;
+}
+
+export function mlTrain(items, alpha = 1) {
+    const K = 4;
+    const classCount = [0, 0, 0, 0], tokenTotal = [0, 0, 0, 0];
+    const vocab = {};
+    for (const it of items) {
+        const c = it.label;
+        if (!(c >= 0 && c < K)) continue;
+        classCount[c]++;
+        for (const f of mlTokens(it.text)) {
+            if (!vocab[f]) vocab[f] = [0, 0, 0, 0];
+            vocab[f][c]++;
+            tokenTotal[c]++;
+        }
+    }
+    return { alpha, classCount, tokenTotal, vocab, V: Object.keys(vocab).length, n: classCount.reduce((a, b) => a + b, 0) };
+}
+
+export function mlPredict(model, text) {
+    if (!model || !model.n) return null;
+    const K = 4, { alpha, classCount, tokenTotal, vocab, V, n } = model;
+    const scores = [];
+    for (let c = 0; c < K; c++) {
+        let sc = Math.log((classCount[c] + 1) / (n + K));
+        for (const f of mlTokens(text)) {
+            const cnt = vocab[f] ? vocab[f][c] : 0;
+            if (!vocab[f]) continue; // bỏ qua từ chưa từng gặp
+            sc += Math.log((cnt + alpha) / (tokenTotal[c] + alpha * V));
+        }
+        scores.push(sc);
+    }
+    const mx = Math.max(...scores);
+    const ex = scores.map(v => Math.exp(v - mx)), sum = ex.reduce((a, b) => a + b, 0);
+    const prob = ex.map(v => v / sum);
+    let level = 0;
+    for (let c = 1; c < K; c++) if (prob[c] > prob[level]) level = c;
+    return { level, prob: prob.map(p => Math.round(p * 1000) / 1000) };
+}
+
+// Các từ "đặc trưng" nhất của mỗi mức (giúp giải thích mô hình đã học được gì)
+export function mlTopWords(model, perClass = 10) {
+    const { alpha, tokenTotal, vocab, V } = model;
+    const out = [];
+    for (let c = 0; c < 4; c++) {
+        const rows = [];
+        for (const [w, cnt] of Object.entries(vocab)) {
+            const total = cnt[0] + cnt[1] + cnt[2] + cnt[3];
+            if (total < 2 || cnt[c] < 2) continue;
+            const pc = (cnt[c] + alpha) / (tokenTotal[c] + alpha * V);
+            const restTok = tokenTotal.reduce((a, b) => a + b, 0) - tokenTotal[c];
+            const pr = (total - cnt[c] + alpha) / (restTok + alpha * V);
+            rows.push([w.replace(/_/g, " "), Math.log(pc / pr)]);
+        }
+        rows.sort((a, b) => b[1] - a[1]);
+        out.push(rows.slice(0, perClass).map(r => r[0]));
+    }
+    return out;
+}
+
+let mlCache = { t: 0, model: null, active: false };
+export async function getMlModel(force = false) {
+    if (!redisConfig()) return { model: null, active: false };
+    if (!force && mlCache.t && Date.now() - mlCache.t < 60000) return mlCache;
+    try {
+        const [raw, act] = await redis([["GET", "ml:model"], ["GET", "ml:active"]]);
+        mlCache = { t: Date.now(), model: raw ? JSON.parse(raw) : null, active: act === "1" };
+    } catch (e) {
+        console.error("Không đọc được mô hình học máy:", e.message);
+    }
+    return mlCache;
+}
+export function invalidateMlModel() { mlCache = { t: 0, model: null, active: false }; }
+
+/* =====================================================================
    PHẦN 3. KẾT NỐI AI (Groq)
    ===================================================================== */
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";

@@ -2,7 +2,7 @@
 // API key lưu ở Vercel: Settings → Environment Variables → GROQ_API_KEY
 
 import {
-    detectKeywords, getCustomLexicon, classifyAI, combineRisk, groqChat, REPLY_MODELS,
+    detectKeywords, getCustomLexicon, getMlModel, mlPredict, classifyAI, combineRisk, groqChat, REPLY_MODELS,
     logEvent, getKnowledge, getGroqKey, redisConfig, redis, setCors, readBody, cleanText
 } from "./_lib.js";
 
@@ -98,9 +98,16 @@ export default async function handler(req, res) {
         if (!l2) console.error("Lớp 2 lỗi:", l2Result.reason && l2Result.reason.message);
 
         // KẾT HỢP 2 lớp + điểm tích lũy cả cuộc trò chuyện
-        const risk = combineRisk(l1.level, l2 ? l2.level : null, prevScore);
+        // Mô hình học máy của học sinh (nếu giáo viên đã bật): cùng tham gia, lấy mức cao hơn
+        let mlLevel = 0;
+        try {
+            const mlState = await getMlModel();
+            if (mlState.active && mlState.model) mlLevel = mlPredict(mlState.model, message).level;
+        } catch (e) { console.error("Lỗi mô hình học máy:", e.message); }
+        const risk = combineRisk(Math.max(l1.level, mlLevel), l2 ? l2.level : null, prevScore);
         const topic = l2 ? l2.topic : "khac";
-        const source = l2 && l2.level >= l1.level ? (l1.level === l2.level ? "ca_hai" : "AI") : "tu_khoa";
+        const l2v = l2 ? l2.level : -1, best = Math.max(l1.level, mlLevel, l2v);
+        const source = (l2v === best && l1.level === best) ? "ca_hai" : l2v === best ? "AI" : l1.level === best ? "tu_khoa" : "mo_hinh";
 
         // Ghi thống kê ẩn danh (không lưu nội dung). Lỗi ghi thì bỏ qua, không ảnh hưởng học sinh.
         try {
