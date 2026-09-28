@@ -77,6 +77,13 @@
             font-weight: 700; font-size: 14px; text-decoration: none; cursor: pointer;
         }
 
+        .safety-q { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.35); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .safety-q span { font-weight: 700; }
+        .safety-q button { background: rgba(255,255,255,.18); color: #fff; border: 1px solid #fff; border-radius: 8px; padding: 6px 12px; font-weight: 600; cursor: pointer; font-size: 14px; }
+        .safety-q button.on { background: #fff; color: var(--red); }
+        .safety-reply { margin-top: 8px; font-size: 14px; display: none; }
+        .safety-reply.show { display: block; }
+        .crisis-actions .btn-contact { background: #fde68a; color: #7c2d12; }
         .chat-messages { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #fafafa; }
         .msg { max-width: 85%; padding: 11px 15px; border-radius: 12px; font-size: 15px; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere; }
         .msg.rich { white-space: normal; }
@@ -90,6 +97,9 @@
         /* Thẻ gợi ý gặp thầy cô (mức 2) */
         .care-card { align-self: flex-start; max-width: 85%; background: var(--amber-bg); border: 1px solid var(--amber-border); color: #78350f; border-radius: 12px; padding: 11px 15px; font-size: 14px; }
         .care-card button { margin-top: 8px; background: #f59e0b; color: #fff; border: none; border-radius: 8px; padding: 8px 12px; font-weight: 600; cursor: pointer; font-size: 14px; }
+        .care-card button + button { margin-left: 6px; background: #fff; color: #92400e; border: 1px solid #f59e0b; }
+        .consent { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
+        .consent input { width: auto; margin-top: 3px; }
 
         .chat-input-area { padding: 12px; background: var(--white); border-top: 1px solid var(--border); display: flex; gap: 8px; }
         .chat-input-area textarea {
@@ -151,6 +161,10 @@
             .nav-links .hide-mobile { display: none; }
             .section-title { font-size: 22px; }
         }
+        @media (max-width: 600px) {
+            .crisis-banner { max-height: 48%; overflow-y: auto; font-size: 13px; padding: 10px 12px; }
+            .crisis-actions a, .crisis-actions button, .safety-q button { padding: 6px 10px; font-size: 13px; }
+        }
     </style>
 </head>
 <body>
@@ -192,10 +206,17 @@
                 <div class="crisis-banner" id="crisisBanner" role="alert">
                     <strong>💗 Bạn không một mình.</strong> Nếu bạn đang nghĩ đến việc làm hại bản thân hoặc đang gặp nguy hiểm, hãy gọi ngay <strong>111</strong> (miễn phí, 24/7) hoặc <strong>115</strong>, và báo cho thầy cô hoặc người lớn bạn tin tưởng.
                     <div class="crisis-actions">
-                        <a href="tel:111">📞 Gọi 111</a>
-                        <a href="tel:115">🚑 Gọi 115</a>
-                        <button type="button" onclick="openBooking()">📅 Gặp thầy cô tư vấn</button>
+                        <a href="tel:111" onclick="track('call111')">📞 Gọi 111</a>
+                        <a href="tel:115" onclick="track('call115')">🚑 Gọi 115</a>
+                        <button type="button" class="btn-contact" onclick="openContact()">🙋 Muốn thầy cô liên hệ với mình</button>
+                        <button type="button" onclick="openBooking()">📅 Đặt lịch gặp</button>
                     </div>
+                    <div class="safety-q" id="safetyQ">
+                        <span>Ngay lúc này, bạn có đang an toàn không?</span>
+                        <button type="button" id="safeYes" onclick="answerSafety(true)">Mình đang an toàn</button>
+                        <button type="button" id="safeNo" onclick="answerSafety(false)">Mình chưa an toàn</button>
+                    </div>
+                    <div class="safety-reply" id="safetyReply"></div>
                 </div>
 
                 <div class="chat-messages" id="chatMessages">
@@ -292,6 +313,54 @@
                 <div class="modal-actions">
                     <button type="button" class="btn btn-outline" onclick="copyCode()">📋 Sao chép mã</button>
                     <button type="button" class="btn btn-primary" onclick="closeModal('bookingModal')">Xong</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Hộp thoại MUỐN THẦY CÔ LIÊN HỆ (học sinh tự nguyện bỏ ẩn danh) ===== -->
+    <div class="modal" id="contactModal" onclick="if(event.target===this) closeModal('contactModal')">
+        <div class="modal-card">
+            <div id="contactFormWrap">
+                <h3>🙋 Mình muốn thầy cô liên hệ với mình</h3>
+                <p class="sub">Bình thường Bạn Đồng Hành không biết bạn là ai. Nếu bạn muốn thầy cô tư vấn <strong>chủ động tìm và hỗ trợ bạn</strong>, hãy để lại ít nhất <strong>lớp</strong> hoặc <strong>số điện thoại/Zalo</strong>. Chỉ giáo viên có tài khoản Trang giáo viên của trường xem được thông tin này.</p>
+                <div class="notice err" style="margin-bottom:10px">Nếu bạn đang gặp nguy hiểm ngay lúc này, đừng chờ: gọi <a href="tel:111" onclick="track('call111')"><strong>111</strong></a> hoặc đến chỗ thầy cô, người lớn gần nhất.</div>
+                <form id="contactForm">
+                    <div class="field">
+                        <label>Họ tên hoặc biệt danh <span>(không bắt buộc)</span></label>
+                        <input name="nickname" maxlength="40">
+                    </div>
+                    <div class="field">
+                        <label>Lớp</label>
+                        <input name="lop" maxlength="20" placeholder="Ví dụ: 11A2">
+                    </div>
+                    <div class="field">
+                        <label>Số điện thoại / Zalo</label>
+                        <input name="phone" maxlength="40" inputmode="tel" placeholder="Để trống nếu bạn chỉ muốn ghi lớp">
+                    </div>
+                    <div class="field">
+                        <label>Thầy cô có thể liên hệ lúc nào? <span>(không bắt buộc)</span></label>
+                        <input name="preferred" maxlength="100" placeholder="Ví dụ: sau 17 giờ, hoặc giờ ra chơi">
+                    </div>
+                    <div class="field">
+                        <label>Lời nhắn cho thầy cô <span>(không bắt buộc)</span></label>
+                        <textarea name="note" maxlength="600"></textarea>
+                    </div>
+                    <label class="consent"><input type="checkbox" name="consent" required> Mình đồng ý để thầy cô tư vấn của trường liên hệ với mình.</label>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-outline" onclick="closeModal('contactModal')">Đóng</button>
+                        <button type="submit" class="btn btn-primary" id="btnContact">Gửi cho thầy cô</button>
+                    </div>
+                    <div id="contactMsg"></div>
+                </form>
+            </div>
+            <div id="contactDone" style="display:none">
+                <h3>✅ Thầy cô đã nhận được</h3>
+                <p class="sub" id="contactDoneText">Thầy cô tư vấn sẽ liên hệ với bạn sớm nhất có thể. Mã của bạn (dùng ở mục "Tra cứu mã hẹn"):</p>
+                <div class="code-box"><div class="code" id="contactCode">TV-XXXXXX</div></div>
+                <p class="sub">Trong lúc chờ, nếu bạn thấy không an toàn, hãy gọi <a href="tel:111" onclick="track('call111')"><strong>111</strong></a> hoặc ở cạnh một người lớn bạn tin tưởng.</p>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-primary" onclick="closeModal('contactModal')">Xong</button>
                 </div>
             </div>
         </div>
@@ -395,8 +464,10 @@
         function showCareCard() {
             const card = document.createElement('div');
             card.className = 'care-card';
-            card.innerHTML = '💛 Có vẻ bạn đang trải qua điều không dễ dàng. Thầy cô tư vấn của trường luôn sẵn sàng lắng nghe bạn, và bạn có thể đặt lịch <strong>ẩn danh</strong>.<br><button type="button">📅 Đặt lịch gặp thầy cô</button>';
-            card.querySelector('button').addEventListener('click', openBooking);
+            card.innerHTML = '💛 Có vẻ bạn đang trải qua điều không dễ dàng. Thầy cô tư vấn của trường luôn sẵn sàng lắng nghe bạn. Bạn có thể đặt lịch <strong>ẩn danh</strong>, hoặc để lại lớp/số điện thoại nếu muốn thầy cô chủ động tìm bạn.<br><button type="button">📅 Đặt lịch gặp thầy cô</button><button type="button">🙋 Muốn thầy cô liên hệ</button>';
+            const bs = card.querySelectorAll('button');
+            bs[0].addEventListener('click', openBooking);
+            bs[1].addEventListener('click', () => openContact());
             messagesContainer.appendChild(card);
             scrollBottom();
         }
@@ -483,7 +554,7 @@
         function openModal(id) { document.getElementById(id).classList.add('show'); }
         function closeModal(id) { document.getElementById(id).classList.remove('show'); }
         document.addEventListener('keydown', e => {
-            if (e.key === 'Escape') { closeModal('bookingModal'); closeModal('lookupModal'); }
+            if (e.key === 'Escape') { closeModal('bookingModal'); closeModal('lookupModal'); closeModal('contactModal'); }
         });
 
         function openBooking() {
@@ -499,6 +570,7 @@
             const msg = document.getElementById('bookingMsg');
             const fd = new FormData(e.target);
             const payload = Object.fromEntries(fd.entries());
+            payload.cid = conversationId;
             btn.disabled = true;
             btn.textContent = 'Đang gửi...';
             msg.innerHTML = '';
@@ -519,6 +591,65 @@
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'Gửi yêu cầu';
+            }
+        });
+
+        /* ===== Ghi nhận ẩn danh hành động sau cảnh báo (chỉ đếm, không gửi nội dung) ===== */
+        function track(ev) {
+            try {
+                const body = JSON.stringify({ action: 'event', event: ev, cid: conversationId });
+                if (navigator.sendBeacon) navigator.sendBeacon('/api/booking', new Blob([body], { type: 'application/json' }));
+                else fetch('/api/booking', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true });
+            } catch (e) { }
+        }
+
+        let unsafeNow = false;
+        function answerSafety(safe) {
+            unsafeNow = !safe;
+            document.getElementById('safeYes').classList.toggle('on', safe);
+            document.getElementById('safeNo').classList.toggle('on', !safe);
+            const out = document.getElementById('safetyReply');
+            out.innerHTML = safe
+                ? 'Cảm ơn bạn đã cho mình biết. Mình vẫn ở đây nếu bạn muốn kể tiếp. Nếu lúc nào thấy không ổn, bạn cứ gọi 111 hoặc bấm "Muốn thầy cô liên hệ" nhé.'
+                : '<strong>Hãy gọi 111 ngay</strong>, hoặc đến chỗ thầy cô, cha mẹ, bác bảo vệ – bất kỳ người lớn nào ở gần bạn – và nói "em đang không ổn". Nếu bạn muốn, bấm <strong>"Muốn thầy cô liên hệ với mình"</strong> để thầy cô tư vấn tìm bạn sớm nhất.';
+            out.classList.add('show');
+            track(safe ? 'safe_yes' : 'safe_no');
+            if (!safe) openContact(true);
+        }
+
+        function openContact(unsafe) {
+            if (unsafe === true) unsafeNow = true;
+            document.getElementById('contactFormWrap').style.display = '';
+            document.getElementById('contactDone').style.display = 'none';
+            document.getElementById('contactMsg').innerHTML = '';
+            openModal('contactModal');
+        }
+
+        document.getElementById('contactForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnContact');
+            const msg = document.getElementById('contactMsg');
+            const payload = Object.fromEntries(new FormData(e.target).entries());
+            if (!payload.lop.trim() && !payload.phone.trim()) {
+                msg.innerHTML = '<div class="notice err">Hãy ghi ít nhất lớp hoặc số điện thoại/Zalo để thầy cô tìm được bạn.</div>';
+                return;
+            }
+            payload.kind = 'lien_he';
+            payload.cid = conversationId;
+            payload.unsafe = unsafeNow ? '1' : '';
+            btn.disabled = true; btn.textContent = 'Đang gửi...'; msg.innerHTML = '';
+            try {
+                const r = await fetch('/api/booking', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const data = await r.json().catch(() => ({}));
+                if (!r.ok || !data.code) throw new Error(data.error || 'Lỗi ' + r.status);
+                document.getElementById('contactCode').textContent = data.code;
+                document.getElementById('contactFormWrap').style.display = 'none';
+                document.getElementById('contactDone').style.display = '';
+                e.target.reset();
+            } catch (err) {
+                msg.innerHTML = '<div class="notice err">Chưa gửi được: ' + escapeHtml(err.message) + '. Nếu bạn cần giúp ngay, hãy gọi 111.</div>';
+            } finally {
+                btn.disabled = false; btn.textContent = 'Gửi cho thầy cô';
             }
         });
 

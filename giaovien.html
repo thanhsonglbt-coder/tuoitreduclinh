@@ -69,6 +69,11 @@
         /* Lịch hẹn */
         .booking { border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 12px; background: var(--white); }
         .booking.new { border-left: 4px solid #e34948; }
+        .booking.urgent { border: 2px solid #dc2626; background: #fff5f5; }
+        .pill { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 700; margin-right: 4px; }
+        .pill.red { background: #dc2626; color: #fff; }
+        .pill.amber { background: #fef3c7; color: #92400e; }
+        .pill.blue { background: #e0f2fe; color: #075985; }
         .booking .head { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
         .booking .code { font-weight: 800; color: var(--dark); letter-spacing: 1px; }
         .booking dl { display: grid; grid-template-columns: 150px 1fr; gap: 4px 10px; font-size: 14px; margin-bottom: 10px; }
@@ -147,6 +152,11 @@
         <p class="sub">Mỗi giáo viên đăng nhập bằng mã riêng. Tài khoản mới và tài khoản được đặt lại dùng mật khẩu mặc định (biến DEFAULT_TEACHER_PASSWORD trên Vercel) và phải đổi mật khẩu ở lần đăng nhập đầu.</p>
         <div id="tMsg2"></div>
         <div class="card">
+            <h3>🔔 Báo động Telegram cho giáo viên tư vấn</h3>
+            <p class="sub">Khi có cảnh báo mức 3, khi học sinh trả lời "chưa an toàn", hoặc khi học sinh tự nguyện để lại liên lạc, hệ thống gửi tin Telegram gồm <b>giờ, chủ đề, mã cuộc/mã hẹn</b> – không có nội dung tin nhắn, không có tên, lớp hay số điện thoại. Trạng thái: <span id="tgAdminStatus">Đang kiểm tra...</span></p>
+            <div class="row"><button class="btn btn-primary" onclick="testTelegram(this)">📨 Gửi tin thử</button></div>
+        </div>
+        <div class="card">
             <h3>Thêm giáo viên</h3>
             <div class="row">
                 <input id="newTName" placeholder="Họ và tên" style="flex:2;min-width:220px" maxlength="80">
@@ -204,6 +214,17 @@
             </div>
         </div>
         <div class="card">
+            <h3>Hiệu quả kết nối sau cảnh báo</h3>
+            <p class="sub">Hệ thống không biết học sinh là ai, nên hiệu quả được đo bằng việc <b>sau khi được cảnh báo, học sinh có bước tiếp sang người thật không</b>. Mỗi cuộc trò chuyện chỉ tính 1 lần cho mỗi loại hành động. Cột "Đã liên hệ / đã gặp" lấy từ trạng thái lịch hẹn do thầy cô cập nhật. <span id="tgStatus"></span></p>
+            <div class="table-scroll">
+                <table>
+                    <thead><tr><th>Tuần</th><th>Cuộc có cảnh báo (mức 2–3)</th><th>Trong đó mức 3</th><th>Bấm gọi 111 / 115</th><th>Trả lời an toàn / chưa an toàn</th><th>Tự nguyện để lại liên lạc</th><th>Đặt lịch sau cảnh báo</th><th>Đã liên hệ / đã gặp</th><th>Tỉ lệ bước tiếp</th></tr></thead>
+                    <tbody id="followupBody"><tr><td colspan="9">Đang tải...</td></tr></tbody>
+                </table>
+            </div>
+            <p class="sub" style="margin-top:8px"><b>Tỉ lệ bước tiếp</b> = (để lại liên lạc + đặt lịch sau cảnh báo) / số cuộc có cảnh báo. Đây là số liệu thực tế, chỉ có khi học sinh thật sử dụng.</p>
+        </div>
+        <div class="card">
             <h3>Cảnh báo gần đây (mức 2 – 3)</h3>
             <p class="sub">"Mã cuộc" là mã ngẫu nhiên, giúp nhận biết nhiều cảnh báo thuộc cùng một cuộc trò chuyện. Hệ thống không biết học sinh là ai.</p>
             <div class="table-scroll">
@@ -220,13 +241,14 @@
         <div class="row" style="justify-content:space-between">
             <div>
                 <h2>Lịch hẹn tư vấn</h2>
-                <p class="sub">Học sinh đặt ẩn danh và tra cứu bằng mã hẹn. Lời nhắn của thầy cô sẽ hiện khi học sinh tra cứu mã.</p>
+                <p class="sub">Học sinh đặt ẩn danh và tra cứu bằng mã hẹn. Lời nhắn của thầy cô sẽ hiện khi học sinh tra cứu mã. Yêu cầu <b>🙋 Muốn được liên hệ</b> là học sinh tự nguyện để lại lớp/số điện thoại; <b>🔴 KHẨN</b> là yêu cầu gửi ngay sau cảnh báo mức 3 hoặc khi em báo "chưa an toàn" – cần liên hệ ngay trong ngày. Sau khi liên hệ/gặp, hãy đổi trạng thái để hệ thống đo được hiệu quả kết nối.</p>
             </div>
             <div class="row">
                 <select id="bookingFilter" style="width:auto" onchange="renderBookings()">
                     <option value="">Tất cả</option>
                     <option value="moi" selected>Mới</option>
                     <option value="da_hen">Đã hẹn</option>
+                    <option value="da_lien_he">Đã liên hệ</option>
                     <option value="da_gap">Đã gặp</option>
                     <option value="huy">Đã hủy</option>
                 </select>
@@ -579,7 +601,7 @@ Mai thi Toán lo quá >> Mình ôn rồi >> Cảm ơn bạn, mình đỡ hơn | 
 
     const LEVEL_NAME = ['0 · Bình thường', '1 · Căng thẳng nhẹ', '2 · Đáng lo ngại', '3 · Khẩn cấp'];
     const SOURCE_NAME = { tu_khoa: 'Từ khóa', AI: 'AI', ca_hai: 'Cả hai lớp', tich_luy: 'Tích lũy cả cuộc trò chuyện', mo_hinh: 'Mô hình học sinh huấn luyện' };
-    const STATUS_NAME = { moi: 'Mới', da_hen: 'Đã hẹn', da_gap: 'Đã gặp', huy: 'Đã hủy' };
+    const STATUS_NAME = { moi: 'Mới', da_hen: 'Đã hẹn', da_lien_he: 'Đã liên hệ', da_gap: 'Đã gặp', huy: 'Đã hủy' };
     let TOPIC_NAMES = { hoc_tap: 'Học tập', thi_cu: 'Thi cử', ban_be: 'Bạn bè', gia_dinh: 'Gia đình', tinh_cam: 'Tình cảm', ban_than: 'Bản thân', bat_nat: 'Bắt nạt', khac: 'Khác' };
     const SERIES = ['--s1', '--s2', '--s3', '--s4', '--s5', '--s6', '--s7', '--s8'].map(v => getComputedStyle(document.documentElement).getPropertyValue(v).trim());
 
@@ -673,6 +695,7 @@ Mai thi Toán lo quá >> Mình ôn rồi >> Cảm ơn bạn, mình đỡ hơn | 
 
     /* ===== Quản lý giáo viên (quản trị) ===== */
     async function loadTeachers() {
+        loadTgStatus();
         try {
             const d = await api('GET', { action: 'teachers_list' });
             if (!d.hasDefault) notice('tMsg2', 'err', 'Chưa đặt biến DEFAULT_TEACHER_PASSWORD trên Vercel nên chưa thêm hoặc đặt lại mật khẩu được.');
@@ -750,10 +773,45 @@ Mai thi Toán lo quá >> Mình ôn rồi >> Cảm ơn bạn, mình đỡ hơn | 
             setBadge(d.bookingsNew);
             drawCharts(d.weeks);
             renderAlerts(d.alerts);
+            renderFollowup(d.weeks);
+            if (d.urgentNew) notice('statsMsg', 'err', '🔴 Có ' + d.urgentNew + ' yêu cầu KHẨN (học sinh muốn được liên hệ ngay sau cảnh báo mức 3) chưa xử lý. Mở tab Lịch hẹn.');
+            loadTgStatus();
         } catch (err) {
             notice('statsMsg', 'err', err.message);
             document.getElementById('alertsBody').innerHTML = '<tr><td colspan="5">Chưa có dữ liệu.</td></tr>';
         }
+    }
+
+    function renderFollowup(weeks) {
+        const cell = (a, b) => a + ' / ' + b;
+        const pctTxt = (a, b) => b ? (100 * a / b).toFixed(1).replace('.', ',') + '%' : '–';
+        const tot = { flagged: 0, flagged3: 0, call: 0, sy: 0, sn: 0, contact: 0, book: 0, reached: 0 };
+        const rows = weeks.slice().reverse().map(w => {
+            const f = w.followup || {};
+            const r = { flagged: w.flagged || 0, flagged3: w.flagged3 || 0, c1: f.call111 || 0, c5: f.call115 || 0, sy: f.safe_yes || 0, sn: f.safe_no || 0, contact: f.contact_sent || 0, book: f.booking_after || 0, reached: f.reached || 0 };
+            tot.flagged += r.flagged; tot.flagged3 += r.flagged3; tot.call += r.c1 + r.c5; tot.sy += r.sy; tot.sn += r.sn; tot.contact += r.contact; tot.book += r.book; tot.reached += r.reached;
+            return `<tr><td>Tuần ${esc(w.label)}</td><td>${r.flagged}</td><td>${r.flagged3}</td><td>${cell(r.c1, r.c5)}</td><td>${cell(r.sy, r.sn)}</td><td>${r.contact}</td><td>${r.book}</td><td>${r.reached}</td><td>${pctTxt(r.contact + r.book, r.flagged)}</td></tr>`;
+        });
+        rows.push(`<tr style="font-weight:700;background:#f8fafc"><td>Tổng</td><td>${tot.flagged}</td><td>${tot.flagged3}</td><td>${tot.call} lượt</td><td>${cell(tot.sy, tot.sn)}</td><td>${tot.contact}</td><td>${tot.book}</td><td>${tot.reached}</td><td>${pctTxt(tot.contact + tot.book, tot.flagged)}</td></tr>`);
+        document.getElementById('followupBody').innerHTML = rows.join('');
+    }
+
+    async function loadTgStatus() {
+        try {
+            const t = await api('GET', { action: 'telegram_status' });
+            document.getElementById('tgStatus').innerHTML = t.configured
+                ? '<span class="ok-cell">Báo động Telegram: đang bật (' + t.recipients + ' người nhận).</span>'
+                : '<span class="bad-cell">Báo động Telegram: chưa cấu hình.</span>';
+            const a = document.getElementById('tgAdminStatus');
+            if (a) a.innerHTML = t.configured ? '<span class="ok-cell">Đã cấu hình, ' + t.recipients + ' người nhận.</span>' : '<span class="bad-cell">Chưa cấu hình</span> – thêm biến TELEGRAM_BOT_TOKEN và TELEGRAM_CHAT_ID trên Vercel rồi Redeploy.';
+        } catch (e) { }
+    }
+
+    async function testTelegram(btn) {
+        btn.disabled = true;
+        try { const d = await api('POST', null, { action: 'telegram_test' }); notice('tMsg2', 'ok', 'Đã gửi tin thử tới ' + d.sent + ' người nhận. Hãy kiểm tra Telegram.'); }
+        catch (err) { notice('tMsg2', 'err', err.message); }
+        finally { btn.disabled = false; }
     }
 
     function setBadge(n) {
@@ -838,16 +896,21 @@ Mai thi Toán lo quá >> Mình ôn rồi >> Cảm ơn bạn, mình đỡ hơn | 
         const el = document.getElementById('bookingsList');
         if (!list.length) { el.innerHTML = '<div class="notice info">Không có lịch hẹn nào' + (f ? ' ở trạng thái này' : '') + '.</div>'; return; }
         el.innerHTML = list.map(b => `
-            <div class="booking ${b.status === 'moi' ? 'new' : ''}" data-code="${esc(b.code)}">
+            <div class="booking ${b.status === 'moi' ? 'new' : ''} ${b.urgent && b.status === 'moi' ? 'urgent' : ''}" data-code="${esc(b.code)}">
                 <div class="head">
-                    <span class="code">${esc(b.code)}</span>
+                    <span><span class="code">${esc(b.code)}</span>
+                        ${b.urgent ? '<span class="pill red">🔴 KHẨN</span>' : ''}
+                        ${b.kind === 'lien_he' ? '<span class="pill amber">🙋 Muốn được liên hệ</span>' : ''}
+                        ${b.fromAlert >= 2 ? '<span class="pill blue">Sau cảnh báo mức ' + b.fromAlert + '</span>' : ''}
+                        ${b.unsafe ? '<span class="pill red">Em báo: chưa an toàn</span>' : ''}</span>
                     <span class="sub" style="margin:0">Gửi lúc ${esc(new Date(b.t).toLocaleString('vi-VN'))}</span>
                 </div>
                 <dl>
-                    <dt>Biệt danh</dt><dd>${esc(b.nickname) || '<i>(ẩn danh)</i>'}</dd>
+                    <dt>${b.kind === 'lien_he' ? 'Họ tên / biệt danh' : 'Biệt danh'}</dt><dd>${esc(b.nickname) || '<i>(ẩn danh)</i>'}</dd>
+                    ${b.kind === 'lien_he' ? `<dt>Lớp</dt><dd><b>${esc(b.lop) || '–'}</b></dd><dt>Điện thoại / Zalo</dt><dd><b>${esc(b.phone) || '–'}</b></dd>` : ''}
                     <dt>Chủ đề</dt><dd>${esc(TOPIC_NAMES[b.topic] || b.topic)}</dd>
                     <dt>Thời gian mong muốn</dt><dd>${esc(b.preferred) || '–'}</dd>
-                    <dt>Cách liên hệ</dt><dd>${esc(b.contact) || '<i>(tự tra cứu bằng mã)</i>'}</dd>
+                    ${b.kind === 'lien_he' ? '' : `<dt>Cách liên hệ</dt><dd>${esc(b.contact) || '<i>(tự tra cứu bằng mã)</i>'}</dd>`}
                     <dt>Lời nhắn</dt><dd>${esc(b.note).replace(/\n/g, '<br>') || '–'}</dd>
                     ${b.handledBy ? `<dt>Người xử lý</dt><dd>${esc(b.handledBy)}</dd>` : ''}
                 </dl>
