@@ -62,10 +62,16 @@
             background: var(--white); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.06);
             border: 1px solid var(--border); height: 560px; display: flex; flex-direction: column; overflow: hidden;
         }
+        .chat-box.demo-on { height: 680px; }
         .chat-header { background: var(--primary-blue); color: var(--white); padding: 14px 18px; display: flex; align-items: center; gap: 12px; }
         .bot-avatar { width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
         .bot-status h4 { font-size: 15px; font-weight: 600; }
         .bot-status p { font-size: 12px; opacity: 0.9; }
+
+        /* Công tắc chế độ giải thích (chỉ hiện khi mở bằng ?demo=1 hoặc Ctrl+Alt+D) */
+        .demo-switch { display: none; margin-left: auto; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; cursor: pointer; background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.6); border-radius: 999px; padding: 5px 10px; white-space: nowrap; }
+        .demo-available .demo-switch { display: flex; }
+        .demo-switch input { width: auto; accent-color: #fde68a; }
 
         /* Khung đỏ cảnh báo khẩn cấp (mức 3) */
         .crisis-banner { display: none; background: var(--red); color: var(--white); padding: 12px 16px; font-size: 14px; }
@@ -84,7 +90,7 @@
         .safety-reply { margin-top: 8px; font-size: 14px; display: none; }
         .safety-reply.show { display: block; }
         .crisis-actions .btn-contact { background: #fde68a; color: #7c2d12; }
-        .chat-messages { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #fafafa; }
+        .chat-messages { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #fafafa; min-height: 120px; }
         .msg { max-width: 85%; padding: 11px 15px; border-radius: 12px; font-size: 15px; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere; }
         .msg.rich { white-space: normal; }
         .msg .katex-display { margin: 8px 0; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
@@ -111,6 +117,43 @@
         .btn-send:hover { background: var(--dark-blue); }
         .btn-send:disabled { background: #94a3b8; cursor: not-allowed; }
         .input-hint { font-size: 12px; color: var(--text-muted); padding: 0 14px 10px; background: var(--white); }
+
+        /* ===== Chế độ giải thích: bảng tình huống mẫu ===== */
+        .demo-panel { display: none; flex-shrink: 0; max-height: 42%; overflow-y: auto; background: #f1f5f9; border-bottom: 1px solid var(--border); padding: 8px 12px; font-size: 13px; }
+        .demo-on .demo-panel { display: block; }
+        .demo-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .demo-panel summary { cursor: pointer; font-weight: 700; color: var(--dark-blue); padding: 4px 0 2px; }
+        .demo-title { font-weight: 700; color: var(--dark-blue); }
+        .demo-tools { display: flex; gap: 6px; flex-wrap: wrap; }
+        .demo-tools button, .sc-chip { background: var(--white); border: 1px solid #cbd5e1; border-radius: 8px; padding: 4px 9px; font-size: 12.5px; font-weight: 600; color: var(--dark-blue); cursor: pointer; }
+        .demo-tools button:hover, .sc-chip:hover { background: #e0f2fe; border-color: var(--primary-blue); }
+        .demo-tools button:disabled, .sc-chip:disabled { opacity: .5; cursor: not-allowed; }
+        .sc-group { margin: 8px 0 4px; font-weight: 700; font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .02em; }
+        .sc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+        .sc-chip small { font-weight: 500; color: var(--text-muted); margin-left: 4px; }
+        .batch-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; background: var(--white); }
+        .batch-table th, .batch-table td { border: 1px solid var(--border); padding: 3px 6px; text-align: left; vertical-align: top; }
+        .batch-table th { background: #e2e8f0; }
+        .batch-sum { margin-top: 8px; font-weight: 700; color: var(--dark-blue); }
+
+        /* ===== Chế độ giải thích: thẻ giải thích dưới mỗi câu trả lời ===== */
+        .explain-card { align-self: flex-start; max-width: 96%; background: #f8fafc; border: 1px dashed #94a3b8; color: var(--text-dark); border-radius: 12px; padding: 10px 12px; font-size: 13px; line-height: 1.5; }
+        .ex-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 700; color: var(--dark-blue); margin-bottom: 6px; }
+        .ex-msg { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 6px 9px; margin-bottom: 6px; overflow-wrap: anywhere; }
+        .ex-row { display: grid; grid-template-columns: 150px 1fr; gap: 6px; padding: 4px 0; border-top: 1px solid var(--border); }
+        .ex-row .lb { font-weight: 700; color: var(--text-muted); }
+        .lv { display: inline-block; padding: 1px 8px; border-radius: 999px; font-weight: 700; font-size: 12px; white-space: nowrap; }
+        .lv0 { background: #dcfce7; color: #166534; }
+        .lv1 { background: #fef9c3; color: #854d0e; }
+        .lv2 { background: #fed7aa; color: #9a3412; }
+        .lv3 { background: #fecaca; color: #991b1b; }
+        .chip { display: inline-block; padding: 0 7px; margin: 1px 3px 1px 0; border-radius: 6px; font-size: 12px; border: 1px solid #cbd5e1; background: #fff; }
+        .chip.c1 { background: #fef9c3; } .chip.c2 { background: #fed7aa; } .chip.c3 { background: #fecaca; }
+        .chip.note { background: #e0f2fe; border-color: #7dd3fc; color: var(--dark-blue); }
+        .hl { border-radius: 4px; padding: 0 2px; font-weight: 700; }
+        .hl1 { background: #fef08a; } .hl2 { background: #fdba74; } .hl3 { background: #fca5a5; }
+        .ex-muted { color: var(--text-muted); }
+        .ex-tag { font-size: 11px; font-weight: 700; background: #e2e8f0; color: var(--text-muted); border-radius: 6px; padding: 0 6px; }
 
         /* ===== Tính năng ===== */
         .features { padding: 64px 0; background: var(--white); }
@@ -154,12 +197,13 @@
             .privacy-alert { font-size: 13px; margin-bottom: 10px; text-align: left; }
             .intro-actions { justify-content: center; }
             .intro-actions .btn { padding: 10px 14px; font-size: 14px; }
-            .chat-box { height: calc(100dvh - 150px); min-height: 440px; border-radius: 14px; }
+            .chat-box, .chat-box.demo-on { height: calc(100dvh - 150px); min-height: 440px; border-radius: 14px; }
             .msg, .care-card { max-width: 92%; }
             .logo { font-size: 17px; }
             .nav-links a, .nav-links button { font-size: 13px; padding: 6px 8px; }
             .nav-links .hide-mobile { display: none; }
             .section-title { font-size: 22px; }
+            .ex-row { grid-template-columns: 1fr; gap: 2px; }
         }
         @media (max-width: 600px) {
             .crisis-banner { max-height: 48%; overflow-y: auto; font-size: 13px; padding: 10px 12px; }
@@ -194,13 +238,31 @@
                 </div>
             </div>
 
-            <div class="chat-box">
+            <div class="chat-box" id="chatBox">
                 <div class="chat-header">
                     <div class="bot-avatar">🤖</div>
                     <div class="bot-status">
                         <h4>Bạn Đồng Hành AI</h4>
                         <p>🟢 Đang trực tuyến, luôn lắng nghe...</p>
                     </div>
+                    <label class="demo-switch" title="Hiện cách bộ sàng lọc chấm từng tin nhắn (dành cho trình diễn)">
+                        <input type="checkbox" id="demoCheck"> 🔬 Chế độ giải thích
+                    </label>
+                </div>
+
+                <!-- Bảng tình huống mẫu (chỉ hiện khi bật chế độ giải thích) -->
+                <div class="demo-panel" id="demoPanel">
+                    <div class="demo-bar">
+                        <span class="demo-title">🔬 Đang hiện cách hệ thống chấm từng tin nhắn</span>
+                        <div class="demo-tools">
+                            <button type="button" id="btnRunAll">▶ Chạy thử tất cả</button>
+                            <button type="button" id="btnReset">↺ Làm mới</button>
+                        </div>
+                    </div>
+                    <details id="scenarioBox">
+                        <summary>🧪 Thử tình huống mẫu (bấm để chọn)</summary>
+                        <div id="scenarioList"></div>
+                    </details>
                 </div>
 
                 <div class="crisis-banner" id="crisisBanner" role="alert">
@@ -241,7 +303,7 @@
                 </div>
                 <div class="feature-card">
                     <h3>🛡️ Phát hiện sớm nguy cơ</h3>
-                    <p>Hai lớp bảo vệ: bộ từ điển từ khóa và AI phân loại mức độ. Khi có dấu hiệu đáng lo, hệ thống gợi ý gặp thầy cô và hiện số hỗ trợ khẩn cấp.</p>
+                    <p>Nhiều tầng bảo vệ: bộ lọc tiếng Việt (hiểu cả không dấu, teencode), mô hình học máy do nhóm tự huấn luyện và AI phân loại. Khi dấu hiệu chưa rõ, hệ thống hỏi lại nhẹ nhàng thay vì vội báo động; khi đáng lo, hệ thống gợi ý gặp thầy cô và hiện số hỗ trợ khẩn cấp.</p>
                 </div>
                 <div class="feature-card">
                     <h3>📅 Kết nối thầy cô tư vấn</h3>
@@ -395,6 +457,7 @@
         const input = document.getElementById('userInput');
         const btnSend = document.getElementById('btnSend');
         const messagesContainer = document.getElementById('chatMessages');
+        const GREETING = 'Chào bạn! Mình là Bạn Đồng Hành. Hôm nay trường lớp hoặc cuộc sống của bạn có điều gì làm bạn áp lực hay mệt mỏi không? Hãy chia sẻ với mình nhé! 😊';
 
         /* ================== HIỂN THỊ CÔNG THỨC TOÁN ================== */
         function escapeHtml(s) {
@@ -473,11 +536,14 @@
         }
 
         let careShownAt = -99;
-        function handleRisk(risk, turn) {
+        let lastClarifyTurn = -99; // lượt gần nhất hệ thống hỏi làm rõ
+        function handleRisk(risk, turn, isSample) {
             if (!risk) return;
-            if (typeof risk.score === 'number') riskScore = risk.score;
+            if (!isSample && typeof risk.score === 'number') riskScore = risk.score;
             if (risk.level >= 3) {
                 document.getElementById('crisisBanner').classList.add('show');
+            } else if (risk.level === 2 && risk.clarify) {
+                // Chưa chắc chắn: hỏi làm rõ trước, hoãn thẻ gợi ý sang lượt sau (nếu vẫn đáng lo sẽ hiện)
             } else if (risk.level === 2 && turn - careShownAt >= 3) {
                 showCareCard(); // không hiện lặp lại liên tục
                 careShownAt = turn;
@@ -486,6 +552,7 @@
 
         /* ================== GỬI TIN NHẮN ================== */
         let turn = 0;
+        let busy = false;
 
         input.addEventListener('input', () => {
             input.style.height = 'auto';
@@ -498,32 +565,41 @@
                 form.requestSubmit();
             }
         });
-        form.addEventListener('submit', sendMessage);
-
-        async function sendMessage(event) {
+        form.addEventListener('submit', (event) => {
             event.preventDefault();
             const userText = input.value.trim();
             if (!userText) return;
-
-            turn++;
-            addRich(userText, 'user');
             input.value = '';
             input.style.height = 'auto';
+            doSend(userText, null);
+        });
+
+        // sample: null (tin nhắn thật) hoặc {id} (tình huống mẫu: chạy độc lập, không ghi thống kê)
+        async function doSend(userText, sample) {
+            if (busy) return;
+            busy = true;
+            turn++;
+            addRich(userText, 'user');
             input.disabled = true;
             btnSend.disabled = true;
 
             const loadingMsg = addPlain('Bạn Đồng Hành đang lắng nghe...', 'bot loading');
 
             try {
+                const payload = {
+                    message: userText,
+                    history: sample ? [] : chatHistory,
+                    cid: conversationId,
+                    riskScore: sample ? 0 : riskScore,
+                    demo: demoOn,
+                    clarifyCooldown: sample ? false : (turn - lastClarifyTurn <= 2)
+                };
+                if (sample) payload.sample = sample.id;
+
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: userText,
-                        history: chatHistory,
-                        cid: conversationId,
-                        riskScore: riskScore
-                    })
+                    body: JSON.stringify(payload)
                 });
 
                 let data = {};
@@ -534,21 +610,242 @@
 
                 loadingMsg.remove();
                 addRich(data.text, 'bot');
-                handleRisk(data.risk, turn);
+                if (demoOn && data.explain) addExplain(data.explain);
+                handleRisk(data.risk, turn, !!sample);
 
-                chatHistory.push({ role: 'user', parts: [{ text: userText }] });
-                chatHistory.push({ role: 'model', parts: [{ text: data.text }] });
-                if (chatHistory.length > MAX_HISTORY) chatHistory = chatHistory.slice(-MAX_HISTORY);
+                if (!sample) {
+                    chatHistory.push({ role: 'user', parts: [{ text: userText }] });
+                    chatHistory.push({ role: 'model', parts: [{ text: data.text }] });
+                    if (chatHistory.length > MAX_HISTORY) chatHistory = chatHistory.slice(-MAX_HISTORY);
+                    if (data.risk && data.risk.clarify) lastClarifyTurn = turn;
+                }
             } catch (error) {
                 console.error('Lỗi gọi AI:', error);
                 loadingMsg.remove();
                 addPlain('Xin lỗi, mình đang gặp trục trặc kết nối nên chưa trả lời được. Bạn thử gửi lại sau ít phút nhé. (Chi tiết: ' + error.message + ')', 'error');
             } finally {
+                busy = false;
                 input.disabled = false;
                 btnSend.disabled = false;
                 input.focus();
             }
         }
+
+        /* ================== CHẾ ĐỘ GIẢI THÍCH (trình diễn bộ sàng lọc) ================== */
+        // Mở trang bằng /?demo=1 (hoặc bấm Ctrl+Alt+D) để hiện công tắc. Học sinh bình thường không thấy.
+        let demoOn = false;
+        let scenarios = [];
+        const LV_NAME = ['Bình thường', 'Căng thẳng nhẹ', 'Đáng lo ngại', 'Khẩn cấp'];
+        const lvBadge = (lv) => '<span class="lv lv' + lv + '">' + lv + ' · ' + LV_NAME[lv] + '</span>';
+
+        function setDemo(on) {
+            demoOn = !!on;
+            document.getElementById('demoCheck').checked = demoOn;
+            document.getElementById('chatBox').classList.toggle('demo-on', demoOn);
+            if (demoOn && !scenarios.length) loadScenarios();
+        }
+        function showDemoSwitch() { document.body.classList.add('demo-available'); }
+
+        if (/[?&]demo=1/.test(location.search)) { showDemoSwitch(); setDemo(true); }
+        document.getElementById('demoCheck').addEventListener('change', (e) => setDemo(e.target.checked));
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.altKey && (e.key === 'd' || e.key === 'D')) {
+                e.preventDefault();
+                showDemoSwitch();
+                setDemo(!demoOn);
+            }
+        });
+
+        function expectText(ex) {
+            if (!ex) return '';
+            const p = [];
+            if (ex.min !== undefined && ex.max !== undefined) p.push(ex.min === ex.max ? ('mức ' + ex.min) : ('mức ' + ex.min + '–' + ex.max));
+            else if (ex.min !== undefined) p.push('mức ≥ ' + ex.min);
+            else if (ex.max !== undefined) p.push('mức ≤ ' + ex.max);
+            if (ex.clarify === true) p.push('hỏi làm rõ');
+            if (ex.clarify === false) p.push('không hỏi làm rõ');
+            return p.join(', ');
+        }
+
+        async function loadScenarios() {
+            const box = document.getElementById('scenarioList');
+            box.innerHTML = '<div class="ex-muted">Đang tải tình huống mẫu...</div>';
+            try {
+                const r = await fetch('/api/chat?scenarios=1');
+                const d = await r.json();
+                scenarios = d.scenarios || [];
+                renderScenarios();
+            } catch (e) {
+                box.innerHTML = '<div class="ex-muted">Chưa tải được tình huống mẫu.</div>';
+            }
+        }
+
+        function renderScenarios() {
+            const box = document.getElementById('scenarioList');
+            box.innerHTML = '';
+            let group = null, chips = null;
+            scenarios.forEach(s => {
+                if (s.group !== group) {
+                    group = s.group;
+                    const h = document.createElement('div');
+                    h.className = 'sc-group';
+                    h.textContent = group;
+                    chips = document.createElement('div');
+                    chips.className = 'sc-chips';
+                    box.appendChild(h);
+                    box.appendChild(chips);
+                }
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'sc-chip';
+                b.title = s.text;
+                b.innerHTML = escapeHtml(s.title) + '<small>' + escapeHtml(expectText(s.expect)) + '</small>';
+                b.addEventListener('click', () => {
+                    document.getElementById('scenarioBox').open = false; // thu gọn để thấy rõ khung trò chuyện
+                    doSend(s.text, { id: s.id });
+                });
+                chips.appendChild(b);
+            });
+        }
+
+        function renderExplainHtml(ex) {
+            const c = ex.combine;
+            const words = (ex.words || []).map(w => w.m ? '<span class="hl hl' + w.m + '">' + escapeHtml(w.t) + '</span>' : escapeHtml(w.t)).join(' ');
+
+            // Tầng 1
+            const hitChips = ex.l1.hits.map(h => '<span class="chip c' + h.muc + '">' + escapeHtml(h.tu) + '</span>').join('');
+            const noteChips = ex.l1.notes.map(n => '<span class="chip note">🛡️ ' + escapeHtml(n) + '</span>').join('');
+            const l1Html = lvBadge(ex.l1.level) + ' <span class="ex-muted">' + ex.l1.ms + ' ms</span><br>' +
+                (hitChips || '<span class="ex-muted">không khớp cụm nào</span> ') + noteChips;
+
+            // Tầng 2
+            let mlHtml;
+            if (ex.ml.active && typeof ex.ml.level === 'number') {
+                const top = Math.round(Math.max.apply(null, ex.ml.prob) * 100);
+                mlHtml = lvBadge(ex.ml.level) + ' <span class="ex-muted">xác suất cao nhất ' + top + '% · ' + ex.ml.ms + ' ms</span>';
+            } else if (ex.ml.active) {
+                mlHtml = '<span class="ex-muted">đang bật nhưng chưa có dữ liệu để dự đoán</span>';
+            } else {
+                mlHtml = '<span class="ex-muted">chưa bật (giáo viên bật ở tab Huấn luyện)</span>';
+            }
+
+            // Tầng 3
+            const l2Html = ex.l2.error
+                ? '<span class="ex-muted">AI chưa phản hồi, hệ thống dùng các tầng còn lại</span>'
+                : lvBadge(ex.l2.level) + ' <span class="ex-muted">chủ đề ' + escapeHtml(ex.l2.topic) + ' · ' + ex.l2.ms + ' ms</span><br><span class="ex-muted">“' + escapeHtml(ex.l2.reason || '') + '”</span>';
+
+            // Kết hợp
+            const dec = String(c.decay).replace('.', ',');
+            let combHtml = 'Mức tin nhắn = mức cao nhất của các tầng = <strong>' + c.messageLevel + '</strong><br>' +
+                'Điểm tích lũy = ' + c.prevScore + ' × ' + dec + ' + ' + c.weight + ' = <strong>' + c.score + '</strong>';
+            if (c.trend) combHtml += '<br>⚠️ Điểm tích lũy ≥ ' + c.threshold + ' nên nâng lên mức 2 (buồn kéo dài qua nhiều tin nhắn)';
+
+            // Hành động
+            const act = [];
+            if (c.finalLevel >= 3) {
+                act.push('🔴 Hiện khung 111/115, hỏi “có đang an toàn không”, nút “Muốn thầy cô liên hệ”');
+                const tg = { sample: 'Telegram: không gửi vì là tình huống mẫu', sent: 'Đã báo Telegram cho thầy cô tư vấn',
+                    recent: 'Telegram: đã báo trong 30 phút gần đây nên không báo lại', off: 'Telegram: chưa cấu hình',
+                    error: 'Telegram: gửi lỗi', no: '' }[ex.telegram] || '';
+                if (tg) act.push('📣 ' + tg);
+            } else if (c.finalLevel === 2) {
+                act.push(ex.clarify.on ? '💬 Hỏi làm rõ trước, hoãn thẻ gợi ý gặp thầy cô sang lượt sau' : '💛 Hiện thẻ gợi ý gặp thầy cô (ẩn danh)');
+            } else if (c.finalLevel === 1) {
+                act.push('💬 Trả lời đồng cảm, tiếp tục lắng nghe');
+            } else {
+                act.push('✅ Trò chuyện bình thường, không cảnh báo');
+            }
+            if (ex.clarify.on && c.finalLevel !== 2) act.push('💬 Hỏi làm rõ: mình hỏi thêm một câu để hiểu bạn ấy hơn');
+            if (ex.clarify.reason) act.push('<span class="ex-muted">Lý do: ' + escapeHtml(ex.clarify.reason) + '</span>');
+            if (ex.sample) act.push('<span class="ex-muted">Tình huống mẫu: không ghi thống kê</span>');
+
+            return '<div class="ex-head"><span>🔬 Vì sao Bạn Đồng Hành phản ứng như vậy?</span>' + lvBadge(c.finalLevel) + '</div>' +
+                '<div class="ex-msg">' + words + (ex.sample ? ' <span class="ex-tag">mẫu</span>' : '') + '</div>' +
+                '<div class="ex-row"><div class="lb">① Bộ lọc tiếng Việt</div><div>' + l1Html + '</div></div>' +
+                '<div class="ex-row"><div class="lb">② Mô hình tự huấn luyện</div><div>' + mlHtml + '</div></div>' +
+                '<div class="ex-row"><div class="lb">③ AI phân loại</div><div>' + l2Html + '</div></div>' +
+                '<div class="ex-row"><div class="lb">④ Kết hợp + tích lũy</div><div>' + combHtml + '</div></div>' +
+                '<div class="ex-row"><div class="lb">⑤ Hành động</div><div>' + act.join('<br>') + '</div></div>';
+        }
+
+        function addExplain(ex) {
+            const card = document.createElement('div');
+            card.className = 'explain-card';
+            card.innerHTML = renderExplainHtml(ex);
+            messagesContainer.appendChild(card);
+            scrollBottom();
+        }
+
+        function resetChat() {
+            messagesContainer.innerHTML = '';
+            addPlain(GREETING, 'bot');
+            chatHistory = []; riskScore = 0; turn = 0; careShownAt = -99; lastClarifyTurn = -99;
+            document.getElementById('crisisBanner').classList.remove('show');
+            document.getElementById('safetyReply').classList.remove('show');
+            document.getElementById('safeYes').classList.remove('on');
+            document.getElementById('safeNo').classList.remove('on');
+            unsafeNow = false;
+        }
+        document.getElementById('btnReset').addEventListener('click', resetChat);
+
+        // Chạy thử tất cả tình huống mẫu (chỉ sàng lọc, không sinh câu trả lời) và đối chiếu với kỳ vọng
+        let lastBatchTsv = '';
+        document.getElementById('btnRunAll').addEventListener('click', async () => {
+            if (!scenarios.length) await loadScenarios();
+            const btn = document.getElementById('btnRunAll');
+            document.getElementById('scenarioBox').open = false;
+            // Kết quả hiện thành một thẻ ngay trong khung trò chuyện cho rộng chỗ
+            const out = document.createElement('div');
+            out.className = 'explain-card';
+            out.style.maxWidth = '100%';
+            messagesContainer.appendChild(out);
+            btn.disabled = true;
+            const rows = [];
+            let pass = 0;
+            for (let i = 0; i < scenarios.length; i++) {
+                const s = scenarios[i];
+                out.innerHTML = '<div class="batch-sum">Đang chạy ' + (i + 1) + '/' + scenarios.length + '...</div>';
+                let ex = null, err = '';
+                try {
+                    const r = await fetch('/api/chat', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: s.text, history: [], cid: conversationId, riskScore: 0, demo: true, sample: s.id, screenOnly: true })
+                    });
+                    const d = await r.json().catch(() => ({}));
+                    if (!r.ok) throw new Error(d.error || ('Lỗi ' + r.status));
+                    ex = d.explain;
+                } catch (e) { err = e.message; }
+                let ok = false;
+                if (ex) {
+                    const lv = ex.combine.finalLevel, e2 = s.expect || {};
+                    ok = (e2.min === undefined || lv >= e2.min) && (e2.max === undefined || lv <= e2.max) &&
+                         (e2.clarify === undefined || e2.clarify === ex.clarify.on);
+                }
+                if (ok) pass++;
+                rows.push({ s, ex, err, ok });
+            }
+            const lvOf = (x) => x === undefined ? '–' : x;
+            let html = '<div class="batch-sum">Đạt kỳ vọng: ' + pass + '/' + scenarios.length + '</div>' +
+                '<table class="batch-table"><tr><th>Tình huống</th><th>Từ điển</th><th>Mô hình</th><th>AI</th><th>Kết quả</th><th>Hỏi lại</th><th>Kỳ vọng</th></tr>';
+            let tsv = 'Tình huống\tTừ điển\tMô hình\tAI\tKết quả\tHỏi làm rõ\tKỳ vọng\tĐạt\n';
+            rows.forEach(r => {
+                const ex = r.ex;
+                if (!ex) { html += '<tr><td>' + escapeHtml(r.s.title) + '</td><td colspan="6">Lỗi: ' + escapeHtml(r.err) + '</td></tr>'; return; }
+                const ml = ex.ml.active && typeof ex.ml.level === 'number' ? ex.ml.level : '–';
+                const l2 = ex.l2.error ? '–' : ex.l2.level;
+                html += '<tr><td>' + escapeHtml(r.s.title) + '</td><td>' + lvOf(ex.l1.level) + '</td><td>' + ml + '</td><td>' + l2 + '</td><td><strong>' + ex.combine.finalLevel +
+                    '</strong></td><td>' + (ex.clarify.on ? 'có' : 'không') + '</td><td>' + (r.ok ? '✅' : '⚠️') + ' ' + escapeHtml(expectText(r.s.expect)) + '</td></tr>';
+                tsv += [r.s.title, ex.l1.level, ml, l2, ex.combine.finalLevel, ex.clarify.on ? 'có' : 'không', expectText(r.s.expect), r.ok ? 'x' : ''].join('\t') + '\n';
+            });
+            html += '</table><div style="margin-top:6px"><button type="button" class="sc-chip" id="btnCopyBatch">📋 Sao chép bảng kết quả</button></div>';
+            lastBatchTsv = tsv;
+            out.innerHTML = html;
+            out.querySelector('#btnCopyBatch').addEventListener('click', () => {
+                if (navigator.clipboard) navigator.clipboard.writeText(lastBatchTsv).catch(() => { });
+            });
+            scrollBottom();
+            btn.disabled = false;
+        });
 
         /* ================== HỘP THOẠI ================== */
         function openModal(id) { document.getElementById(id).classList.add('show'); }
