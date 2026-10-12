@@ -155,6 +155,22 @@
         .ex-muted { color: var(--text-muted); }
         .ex-tag { font-size: 11px; font-weight: 700; background: #e2e8f0; color: var(--text-muted); border-radius: 6px; padding: 0 6px; }
 
+        /* ===== Mở đầu dễ dàng: hỏi thăm cảm xúc + câu gợi ý ===== */
+        .starter { align-self: stretch; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; font-size: 14px; }
+        .starter .st-q { font-weight: 600; color: var(--dark-blue); margin-bottom: 6px; }
+        .moods { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+        .moods button { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 4px 8px; cursor: pointer; font-size: 13px; display: flex; flex-direction: column; align-items: center; min-width: 58px; }
+        .moods button span { font-size: 22px; line-height: 1.2; }
+        .moods button:hover, .chips button:hover { border-color: var(--primary-blue); background: #e0f2fe; }
+        .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+        .chips button { background: #f0f9ff; border: 1px solid #bae6fd; color: var(--dark-blue); border-radius: 999px; padding: 6px 11px; cursor: pointer; font-size: 13px; }
+        .starter .st-note { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+        /* ===== Nút thoát nhanh ===== */
+        .quick-exit { position: fixed; right: 14px; bottom: 14px; z-index: 600; background: #334155; color: #fff; border: none; border-radius: 999px; padding: 10px 14px; font-weight: 700; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.25); }
+        .quick-exit:hover { background: #0f172a; }
+        .privacy-alert a { color: #047857; font-weight: 600; }
+
         /* ===== Tính năng ===== */
         .features { padding: 64px 0; background: var(--white); }
         .section-title { text-align: center; font-size: 28px; color: var(--dark-blue); margin-bottom: 36px; }
@@ -198,6 +214,11 @@
             .intro-actions { justify-content: center; }
             .intro-actions .btn { padding: 10px 14px; font-size: 14px; }
             .chat-box, .chat-box.demo-on { height: calc(100dvh - 150px); min-height: 440px; border-radius: 14px; }
+            .quick-exit { top: 12px; bottom: auto; right: 10px; padding: 7px 11px; font-size: 12px; }
+            .nav-links { display: none; } /* hai nút này đã có ở phần đầu trang; nhường chỗ cho nút Thoát nhanh */
+            .moods { flex-wrap: nowrap; gap: 4px; }
+            .moods button { flex: 1; min-width: 0; padding: 3px 2px; font-size: 11px; }
+            .moods button span { font-size: 20px; }
             .msg, .care-card { max-width: 92%; }
             .logo { font-size: 17px; }
             .nav-links a, .nav-links button { font-size: 13px; padding: 6px 8px; }
@@ -212,6 +233,7 @@
     </style>
 </head>
 <body>
+    <button type="button" class="quick-exit" id="quickExit" title="Đóng nhanh trang này và xóa cuộc trò chuyện">✕ Thoát nhanh</button>
 
     <header>
         <div class="container">
@@ -229,7 +251,7 @@
     <section class="hero-section">
         <div class="container grid-layout">
             <div class="intro-text">
-                <div class="privacy-alert">🔒 <strong>Ẩn danh:</strong> Hệ thống không lưu tên và không lưu nội dung trò chuyện của bạn.</div>
+                <div class="privacy-alert">🔒 <strong>Ẩn danh:</strong> Hệ thống không lưu tên và không lưu nội dung trò chuyện của bạn. <a href="/bimat.html">Bạn Đồng Hành giữ bí mật thế nào? →</a></div>
                 <h1>Trút bỏ gánh nặng lòng,<br>Có Bạn Đồng Hành lắng nghe.</h1>
                 <p>Không gian an toàn, không phán xét. Trợ lý AI lắng nghe áp lực học tập, thi cử và những tâm tư khó nói, đồng thời kết nối bạn với thầy cô tư vấn của trường khi cần.</p>
                 <div class="intro-actions">
@@ -283,6 +305,7 @@
 
                 <div class="chat-messages" id="chatMessages">
                     <div class="msg bot">Chào bạn! Mình là Bạn Đồng Hành. Hôm nay trường lớp hoặc cuộc sống của bạn có điều gì làm bạn áp lực hay mệt mỏi không? Hãy chia sẻ với mình nhé! 😊</div>
+                    <div id="starterSlot"></div>
                 </div>
                 <form class="chat-input-area" id="chatForm">
                     <textarea id="userInput" rows="1" placeholder="Nhập tin nhắn của bạn..." autocomplete="off"></textarea>
@@ -321,7 +344,7 @@
         <div class="container">
             <div class="crisis-line">🆘 Khi gặp nguy hiểm hoặc có ý định làm hại bản thân: gọi ngay <a href="tel:111">111</a> (Tổng đài Quốc gia Bảo vệ Trẻ em, miễn phí 24/7) hoặc <a href="tel:115">115</a> (Cấp cứu)</div>
             <p>Bạn Đồng Hành là trợ lý AI hỗ trợ lắng nghe, không thay thế chuyên gia tâm lý. Hãy tìm đến thầy cô, cha mẹ hoặc người bạn tin tưởng khi cần.</p>
-            <p style="margin-top:10px;">© 2026 Dự án KHKT – Trường THPT Đức Linh · <a class="teacher-link" href="/giaovien.html">Dành cho giáo viên</a></p>
+            <p style="margin-top:10px;">© 2026 Dự án KHKT – Trường THPT Đức Linh · <a class="teacher-link" href="/bimat.html">Bạn Đồng Hành giữ bí mật thế nào?</a> · <a class="teacher-link" href="/giaovien.html">Dành cho giáo viên</a></p>
         </div>
     </footer>
 
@@ -579,6 +602,7 @@
             if (busy) return;
             busy = true;
             turn++;
+            removeStarter();
             addRich(userText, 'user');
             input.disabled = true;
             btnSend.disabled = true;
@@ -595,6 +619,8 @@
                     clarifyCooldown: sample ? false : (turn - lastClarifyTurn <= 2)
                 };
                 if (sample) payload.sample = sample.id;
+                else if (turn === 1 || chatHistory.length === 0) { payload.entry = pendingEntry || 'go_tu_do'; }
+                pendingEntry = '';
 
                 const response = await fetch('/api/chat', {
                     method: 'POST',
@@ -630,6 +656,61 @@
                 input.focus();
             }
         }
+
+        /* ================== MỞ ĐẦU DỄ DÀNG ================== */
+        // Người đang buồn thường không đủ sức gõ dài: cho phép bắt đầu chỉ bằng một chạm.
+        let pendingEntry = '';
+        const MOODS = [
+            ['mood5', '😄', 'Rất vui', 'rất vui'], ['mood4', '🙂', 'Ổn', 'ổn'], ['mood3', '😐', 'Bình thường', 'bình thường'],
+            ['mood2', '😔', 'Hơi buồn', 'hơi buồn'], ['mood1', '😢', 'Rất tệ', 'rất tệ']
+        ];
+        const CHIPS = [
+            ['chip_nghe', 'Mình chỉ muốn có người nghe'], ['chip_met', 'Mình đang mệt lắm'],
+            ['chip_batdau', 'Mình không biết bắt đầu từ đâu'], ['chip_hoibai', 'Mình muốn hỏi bài']
+        ];
+        function showStarter() {
+            removeStarter();
+            const box = document.createElement('div');
+            box.className = 'starter';
+            box.id = 'starter';
+            box.innerHTML = '<div class="st-q">Hôm nay bạn thấy thế nào? Chỉ cần chạm một lần:</div><div class="moods"></div>' +
+                '<div class="st-q" style="margin-top:2px">Hoặc bắt đầu bằng:</div><div class="chips"></div>' +
+                '<div class="st-note">Không cần phải ổn mới được nói chuyện. Bạn cũng có thể gõ bất cứ điều gì ở ô bên dưới.</div>';
+            const moods = box.querySelector('.moods'), chips = box.querySelector('.chips');
+            MOODS.forEach(([id, emo, label, word]) => {
+                const b = document.createElement('button'); b.type = 'button';
+                b.innerHTML = '<span>' + emo + '</span>' + label;
+                b.addEventListener('click', () => { pendingEntry = id; doSend('Hôm nay mình thấy ' + emo + ' (' + word + ')', null); });
+                moods.appendChild(b);
+            });
+            CHIPS.forEach(([id, text]) => {
+                const b = document.createElement('button'); b.type = 'button'; b.textContent = text;
+                b.addEventListener('click', () => { pendingEntry = id; doSend(text, null); });
+                chips.appendChild(b);
+            });
+            const slot = document.getElementById('starterSlot');
+            if (slot) slot.replaceWith(box); else messagesContainer.appendChild(box);
+            scrollBottom();
+        }
+        function removeStarter() {
+            const st = document.getElementById('starter'); if (st) st.remove();
+            const slot = document.getElementById('starterSlot'); if (slot) slot.remove();
+        }
+        showStarter();
+
+        /* ================== THOÁT NHANH ================== */
+        // Khi có người đến gần: xóa cuộc trò chuyện trên màn hình và chuyển sang trang khác. Nút Quay lại không mở lại được.
+        function quickExit() {
+            try {
+                messagesContainer.innerHTML = '';
+                chatHistory = []; riskScore = 0;
+                input.value = '';
+                document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
+                document.title = 'Thời tiết';
+            } catch (e) { }
+            location.replace('https://www.google.com/search?q=th%E1%BB%9Di+ti%E1%BA%BFt+h%C3%B4m+nay');
+        }
+        document.getElementById('quickExit').addEventListener('click', quickExit);
 
         /* ================== CHẾ ĐỘ GIẢI THÍCH (trình diễn bộ sàng lọc) ================== */
         // Mở trang bằng /?demo=1 (hoặc bấm Ctrl+Alt+D) để hiện công tắc. Học sinh bình thường không thấy.
@@ -779,6 +860,7 @@
         function resetChat() {
             messagesContainer.innerHTML = '';
             addPlain(GREETING, 'bot');
+            showStarter();
             chatHistory = []; riskScore = 0; turn = 0; careShownAt = -99; lastClarifyTurn = -99;
             document.getElementById('crisisBanner').classList.remove('show');
             document.getElementById('safetyReply').classList.remove('show');

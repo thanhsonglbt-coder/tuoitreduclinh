@@ -225,6 +225,16 @@
             <p class="sub" style="margin-top:8px"><b>Tỉ lệ bước tiếp</b> = (để lại liên lạc + đặt lịch sau cảnh báo) / số cuộc có cảnh báo. Đây là số liệu thực tế, chỉ có khi học sinh thật sử dụng.</p>
         </div>
         <div class="card">
+            <h3>Cách học sinh bắt đầu trò chuyện</h3>
+            <p class="sub">Đếm ẩn danh tin nhắn đầu tiên của mỗi cuộc trò chuyện: chọn biểu tượng cảm xúc, chọn câu gợi ý, hay tự gõ. Dùng để đánh giá các nút "mở đầu một chạm" có giúp học sinh dễ bắt đầu hơn không. Chỉ có số liệu từ khi cập nhật tính năng này.</p>
+            <div class="table-scroll">
+                <table>
+                    <thead><tr><th>Tuần</th><th>😢 Rất tệ</th><th>😔 Hơi buồn</th><th>😐 Bình thường</th><th>🙂 Ổn</th><th>😄 Rất vui</th><th>"Chỉ muốn có người nghe"</th><th>"Đang mệt lắm"</th><th>"Không biết bắt đầu"</th><th>"Muốn hỏi bài"</th><th>Tự gõ</th><th>Tỉ lệ dùng mở đầu một chạm</th></tr></thead>
+                    <tbody id="entryBody"><tr><td colspan="12">Đang tải...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card">
             <h3>Cảnh báo gần đây (mức 2 – 3)</h3>
             <p class="sub">"Mã cuộc" là mã ngẫu nhiên, giúp nhận biết nhiều cảnh báo thuộc cùng một cuộc trò chuyện. Hệ thống không biết học sinh là ai.</p>
             <div class="table-scroll">
@@ -774,6 +784,7 @@ Mai thi Toán lo quá >> Mình ôn rồi >> Cảm ơn bạn, mình đỡ hơn | 
             drawCharts(d.weeks);
             renderAlerts(d.alerts);
             renderFollowup(d.weeks);
+            renderEntry(d.weeks);
             if (d.urgentNew) notice('statsMsg', 'err', '🔴 Có ' + d.urgentNew + ' yêu cầu KHẨN (học sinh muốn được liên hệ ngay sau cảnh báo mức 3) chưa xử lý. Mở tab Lịch hẹn.');
             loadTgStatus();
         } catch (err) {
@@ -794,6 +805,19 @@ Mai thi Toán lo quá >> Mình ôn rồi >> Cảm ơn bạn, mình đỡ hơn | 
         });
         rows.push(`<tr style="font-weight:700;background:#f8fafc"><td>Tổng</td><td>${tot.flagged}</td><td>${tot.flagged3}</td><td>${tot.call} lượt</td><td>${cell(tot.sy, tot.sn)}</td><td>${tot.contact}</td><td>${tot.book}</td><td>${tot.reached}</td><td>${pctTxt(tot.contact + tot.book, tot.flagged)}</td></tr>`);
         document.getElementById('followupBody').innerHTML = rows.join('');
+    }
+
+    function renderEntry(weeks) {
+        const keys = ['mood1', 'mood2', 'mood3', 'mood4', 'mood5', 'chip_nghe', 'chip_met', 'chip_batdau', 'chip_hoibai', 'go_tu_do'];
+        const tot = {}; keys.forEach(k => tot[k] = 0);
+        const pct = (a, b) => b ? (100 * a / b).toFixed(1).replace('.', ',') + '%' : '–';
+        const row = (label, e) => {
+            const all = keys.reduce((x, k) => x + (e[k] || 0), 0), oneTap = all - (e.go_tu_do || 0);
+            return '<tr><td>' + label + '</td>' + keys.map(k => '<td>' + (e[k] || 0) + '</td>').join('') + '<td>' + pct(oneTap, all) + '</td></tr>';
+        };
+        const rows = weeks.slice().reverse().map(w => { const e = w.entry || {}; keys.forEach(k => tot[k] += e[k] || 0); return row('Tuần ' + esc(w.label), e); });
+        rows.push(row('<b>Tổng</b>', tot).replace('<tr>', '<tr style="font-weight:700;background:#f8fafc">'));
+        document.getElementById('entryBody').innerHTML = rows.join('');
     }
 
     async function loadTgStatus() {
