@@ -160,7 +160,7 @@ async function getStats(weeks) {
     needDb();
     const list = [];
     for (let i = weeks - 1; i >= 0; i--) list.push(weekInfo(Date.now() - i * 7 * 86400000));
-    const K = 6; // số lệnh cho mỗi tuần
+    const K = 7; // số lệnh cho mỗi tuần
     const cmds = [];
     for (const w of list) {
         cmds.push(["HGETALL", `stats:${w.key}:topic`]);
@@ -169,6 +169,7 @@ async function getStats(weeks) {
         cmds.push(["SCARD", `stats:${w.key}:flag`]);
         cmds.push(["SCARD", `stats:${w.key}:flag3`]);
         cmds.push(["HGETALL", `stats:${w.key}:act`]);
+        cmds.push(["HGETALL", `stats:${w.key}:entry`]);
     }
     cmds.push(["LRANGE", "alerts", 0, 99]);
     cmds.push(["HVALS", "bookings"]);
@@ -179,6 +180,9 @@ async function getStats(weeks) {
         const topicsRaw = hashToObject(r[i * K]);
         const levelsRaw = hashToObject(r[i * K + 1]);
         const actRaw = hashToObject(r[i * K + 5]);
+        const entryRaw = hashToObject(r[i * K + 6]);
+        const entry = {};
+        for (const k of Object.keys(entryRaw)) entry[k] = Number(entryRaw[k] || 0);
         const topics = {};
         for (const k of Object.keys(TOPICS)) topics[k] = Number(topicsRaw[k] || 0);
         const levels = [0, 1, 2, 3].map(l => Number(levelsRaw[l] || 0));
@@ -193,6 +197,7 @@ async function getStats(weeks) {
             conversations: Number(r[i * K + 2] || 0),
             flagged: Number(r[i * K + 3] || 0),
             flagged3: Number(r[i * K + 4] || 0),
+            entry,
             followup
         };
     });

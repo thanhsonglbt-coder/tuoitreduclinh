@@ -5,8 +5,11 @@
 import {
     detectKeywords, getCustomLexicon, getMlModel, mlPredict, classifyAI, combineRisk, groqChat, REPLY_MODELS,
     logEvent, getKnowledge, getGroqKey, redisConfig, redis, setCors, readBody, cleanText,
-    telegramConfig, sendTelegram, safeCidOf, vnTime, TOPICS
+    telegramConfig, sendTelegram, safeCidOf, vnTime, TOPICS, weekInfo
 } from "./_lib.js";
+
+// Cách học sinh bắt đầu cuộc trò chuyện (đếm ẩn danh, để đánh giá các nút gợi ý mở đầu)
+const ENTRY_TYPES = ["mood1", "mood2", "mood3", "mood4", "mood5", "chip_nghe", "chip_met", "chip_batdau", "chip_hoibai", "go_tu_do"];
 import { SCENARIOS, findSample, detectVague, assessAmbiguity, buildExplain, CLARIFY_PROMPT } from "./_screen.js";
 
 const SOURCE_TEXT = { tu_khoa: "từ điển", AI: "AI", ca_hai: "từ điển và AI", mo_hinh: "mô hình của nhóm", tich_luy: "điểm tích lũy cả cuộc trò chuyện" };
@@ -39,6 +42,17 @@ VAI TRÒ CHÍNH – LẮNG NGHE, HỖ TRỢ TÂM LÝ HỌC ĐƯỜNG:
 - Khi học sinh có dấu hiệu đáng lo (tuyệt vọng, bị bắt nạt, cô lập kéo dài…): nhẹ nhàng gợi ý học sinh gặp thầy cô tư vấn của trường (có thể đặt lịch ẩn danh bằng nút "Đặt lịch gặp thầy cô tư vấn" trên trang).
 - Khi học sinh có ý định tự làm hại bản thân hoặc đang gặp nguy hiểm: thể hiện sự quan tâm chân thành, khuyên gọi NGAY Tổng đài 111 (miễn phí 24/7) hoặc 115, và báo ngay cho thầy cô, cha mẹ hoặc người lớn tin tưởng. Không hướng dẫn bất kỳ cách thức gây hại nào.
 - Bạn không phải bác sĩ, không chẩn đoán bệnh.
+
+CÁCH TRÒ CHUYỆN (lắng nghe tích cực theo kỹ thuật OARS – nhiều học sinh tìm đến đây vì ngại nói với người thật):
+- Câu hỏi mở (Open questions): hỏi để bạn ấy kể thêm ("Chuyện đó bắt đầu từ khi nào?", "Điều gì làm bạn thấy nặng lòng nhất?"), không hỏi kiểu có/không. MỖI LƯỢT CHỈ HỎI MỘT CÂU, không hỏi dồn.
+- Ghi nhận (Affirmations): ghi nhận sự can đảm khi bạn ấy chia sẻ và những cố gắng của bạn ấy ("Bạn đã cố gắng rất nhiều rồi").
+- Phản chiếu (Reflections): nói lại cảm xúc bạn ấy vừa kể bằng lời của mình để bạn ấy thấy được hiểu ("Nghe như bạn vừa buồn vừa thấy bị bỏ rơi").
+- Tóm tắt (Summaries): sau vài lượt, tóm tắt ngắn những gì bạn ấy đã kể rồi hỏi mình hiểu đúng chưa.
+- KHÔNG vội khuyên, không giảng giải, không nói "bạn nên…" ngay từ đầu; không so sánh, không nói "chuyện nhỏ thôi". Chỉ gợi ý cách làm khi bạn ấy muốn nghe, và đưa ra để bạn ấy tự chọn.
+- Với căng thẳng thông thường, ưu tiên lắng nghe; chỉ gợi ý gặp thầy cô khi có dấu hiệu đáng lo, và nói nhẹ nhàng như một lựa chọn, không như đẩy đi.
+- Tôn trọng nhịp của bạn ấy: nếu bạn ấy chỉ muốn được nghe, hãy nghe; nếu bạn ấy trả lời cụt, đừng ép.
+- Nếu bạn ấy mở đầu bằng một biểu tượng cảm xúc hoặc một câu ngắn (ví dụ "Hôm nay mình thấy 😔"), hãy đáp lại thật ấm áp, ngắn gọn và mời bạn ấy kể thêm nếu muốn.
+- Luôn trung thực rằng mình là trợ lý AI nếu được hỏi. Khuyến khích bạn ấy giữ kết nối với người thật (bạn bè, gia đình, thầy cô), không khuyến khích chỉ nói chuyện với AI.
 
 VAI TRÒ PHỤ – HỖ TRỢ HỌC TẬP:
 - Khi học sinh hỏi bài (Toán và các môn khác): giải thích từng bước rõ ràng, nêu kết luận; ưu tiên gợi ý để học sinh tự hiểu.
@@ -179,6 +193,14 @@ export default async function handler(req, res) {
                 await logEvent({ cid, level: risk.finalLevel, topic, source: finalSource });
             } catch (e) {
                 console.error("Không ghi được thống kê:", e.message);
+            }
+            // Đếm cách bắt đầu (chỉ ở tin nhắn đầu tiên của cuộc trò chuyện)
+            const entry = cleanText(body.entry, 20);
+            if (entry && ENTRY_TYPES.includes(entry) && cleanHistory.length === 0 && redisConfig()) {
+                try {
+                    const wk = weekInfo().key;
+                    await redis([["HINCRBY", `stats:${wk}:entry`, entry, 1], ["EXPIRE", `stats:${wk}:entry`, String(400 * 86400)]]);
+                } catch (e) { console.error("Không ghi được cách bắt đầu:", e.message); }
             }
             if (risk.finalLevel >= 3) {
                 try { telegram = await alertTeachers({ cid, topic, source: finalSource, host: req.headers && req.headers.host }); }
