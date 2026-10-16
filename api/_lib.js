@@ -602,6 +602,12 @@ export function vnTime(ms = Date.now()) {
     return `${p(d.getUTCHours())}:${p(d.getUTCMinutes())} ngày ${p(d.getUTCDate())}/${p(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
 }
 
+// Ngày theo giờ Việt Nam, dạng 2026-10-16 (dùng cho bộ đếm lượt truy cập)
+export function vnDay(ms = Date.now()) {
+    return new Date(ms + 7 * 3600000).toISOString().slice(0, 10);
+}
+export const VISIT_PAGES = ["home", "bimat"];
+
 export async function logEvent({ cid, level, topic, source }) {
     if (!redisConfig()) return;
     const wk = weekInfo().key;

@@ -45,6 +45,7 @@
             <li>Mỗi tin nhắn thuộc <strong>chủ đề</strong> nào (học tập, gia đình, bạn bè…) và <strong>mức độ</strong> nào (bình thường → khẩn cấp).</li>
             <li>Thời gian và một <strong>mã ngẫu nhiên</strong> cho mỗi lần mở trang. Mã này không gắn với tên hay máy của bạn.</li>
             <li>Bạn bắt đầu trò chuyện bằng cách nào (chọn biểu tượng cảm xúc, chọn câu gợi ý, hay tự gõ), và có bấm nút gọi 111 hay đặt lịch sau khi được cảnh báo không. Hệ thống chỉ đếm số lần, không ghi nội dung.</li>
+            <li><strong>Số lượt truy cập</strong> trang theo từng ngày. Chỉ là một con số cộng dồn, không ghi bạn là ai, không lưu địa chỉ mạng.</li>
         </ul>
         <p><small>Các con số thống kê được tự xóa sau khoảng 13 tháng.</small></p>
     </div>
@@ -71,5 +72,14 @@
     <div class="red">🆘 Nếu bạn đang gặp nguy hiểm hoặc nghĩ đến việc làm hại bản thân: gọi ngay <a href="tel:111">111</a> (miễn phí, 24/7) hoặc <a href="tel:115">115</a>, và tìm đến một người lớn bạn tin tưởng.</div>
     <p style="margin-top:14px"><small>Dự án KHKT – Trường THPT Đức Linh. Có thắc mắc, bạn có thể hỏi thầy cô chủ nhiệm hoặc thầy cô phụ trách đề tài.</small></p>
 </div>
+<script>
+    // Đếm lượt xem trang này (ẩn danh, mỗi tab 1 lượt)
+    try {
+        if (sessionStorage.getItem('bdh_visit_bimat') !== '1') {
+            fetch('/api/visit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page: 'bimat' }) })
+                .then(r => { if (r.ok) sessionStorage.setItem('bdh_visit_bimat', '1'); }).catch(() => { });
+        }
+    } catch (e) { }
+</script>
 </body>
 </html>

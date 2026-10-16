@@ -7,7 +7,7 @@ import {
     detectKeywords, classifyAI, combineRisk, getKnowledge, DEFAULT_KNOWLEDGE, TOPICS,
     LEXICON, LEXICON_V2_EXTRA, getCustomLexicon, invalidateCustomLexicon, normalizeEntry,
     mlTrain, mlPredict, mlTopWords, getMlModel, invalidateMlModel,
-    telegramConfig, sendTelegram, vnTime, FOLLOWUP_ACTIONS
+    telegramConfig, sendTelegram, vnTime, FOLLOWUP_ACTIONS, vnDay
 } from "./_lib.js";
 
 // Chia dữ liệu cố định (cùng câu luôn vào cùng phần) để kết quả huấn luyện lặp lại được
@@ -173,6 +173,14 @@ async function getStats(weeks) {
     }
     cmds.push(["LRANGE", "alerts", 0, 99]);
     cmds.push(["HVALS", "bookings"]);
+    // Lượt truy cập theo ngày (đủ phủ các tuần đang xem) + tổng từ trước tới nay
+    const days = [];
+    for (let d = 0; d < weeks * 7 + 7; d++) {
+        const ms = Date.now() - d * 86400000;
+        days.push({ day: vnDay(ms), wk: weekInfo(ms).key });
+    }
+    const vr = await redis(days.map(x => ["GET", `visits:day:${x.day}`]).concat([["GET", "visits:total"]]));
+    days.forEach((x, i) => { x.count = Number(vr[i] || 0); });
     const r = await redis(cmds);
     const bookings = (r[list.length * K + 1] || []).map(s => { try { return JSON.parse(s); } catch (e) { return null; } }).filter(Boolean);
 
@@ -198,13 +206,17 @@ async function getStats(weeks) {
             flagged: Number(r[i * K + 3] || 0),
             flagged3: Number(r[i * K + 4] || 0),
             entry,
-            followup
+            followup,
+            visits: days.filter(x => x.wk === w.key).reduce((a, x) => a + x.count, 0)
         };
     });
     const alerts = (r[list.length * K] || []).map(s => { try { return JSON.parse(s); } catch (e) { return null; } }).filter(Boolean);
     return {
         weeks: out,
         alerts,
+        visitsTotal: Number(vr[days.length] || 0),
+        visitsToday: days[0].count,
+        visitsDays: days.slice(0, 30).reverse().map(x => ({ day: x.day, count: x.count })),
         bookingsNew: bookings.filter(b => b.status === "moi").length,
         urgentNew: bookings.filter(b => b.status === "moi" && b.urgent).length,
         topicNames: TOPICS,
