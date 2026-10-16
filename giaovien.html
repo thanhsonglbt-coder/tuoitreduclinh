@@ -202,6 +202,8 @@
             <div class="tile"><div class="label">Cuộc có cảnh báo tuần này</div><div class="value" id="tFlag">–</div><div class="hint">có ít nhất 1 tin mức 2 hoặc 3</div></div>
             <div class="tile"><div class="label">Tin nhắn mức 3 (khẩn cấp)</div><div class="value" id="tL3">–</div><div class="hint">trong tuần này</div></div>
             <div class="tile"><div class="label">Lịch hẹn chưa xử lý</div><div class="value" id="tBook">–</div><div class="hint">trạng thái "Mới"</div></div>
+            <div class="tile"><div class="label">Lượt truy cập hôm nay</div><div class="value" id="tVisitDay">–</div><div class="hint">tuần này: <span id="tVisitWeek">–</span></div></div>
+            <div class="tile"><div class="label">Tổng lượt truy cập</div><div class="value" id="tVisitTotal">–</div><div class="hint">từ khi bật bộ đếm</div></div>
         </div>
         <div class="charts">
             <div class="card">
@@ -212,6 +214,11 @@
                 <h3>Cuộc trò chuyện và cuộc có cảnh báo theo tuần</h3>
                 <div class="chart-wrap"><canvas id="chartFlags"></canvas></div>
             </div>
+        </div>
+        <div class="card">
+            <h3>Lượt truy cập 30 ngày gần đây</h3>
+            <p class="sub">Mỗi lần mở trang trong một tab tính 1 lượt (tải lại trang không tính thêm). Chỉ đếm số, không lưu địa chỉ mạng hay thông tin người xem.</p>
+            <div class="chart-wrap"><canvas id="chartVisits"></canvas></div>
         </div>
         <div class="card">
             <h3>Hiệu quả kết nối sau cảnh báo</h3>
@@ -766,7 +773,7 @@ Mai thi Toán lo quá >> Mình ôn rồi >> Cảm ơn bạn, mình đỡ hơn | 
     }
 
     /* ================== TỔNG QUAN ================== */
-    let chartTopics = null, chartFlags = null;
+    let chartTopics = null, chartFlags = null, chartVisits = null;
     document.getElementById('weeksSel').addEventListener('change', loadStats);
 
     async function loadStats() {
@@ -780,6 +787,11 @@ Mai thi Toán lo quá >> Mình ôn rồi >> Cảm ơn bạn, mình đỡ hơn | 
             document.getElementById('tFlag').textContent = cur.flagged;
             document.getElementById('tL3').textContent = cur.levels[3];
             document.getElementById('tBook').textContent = d.bookingsNew;
+            const fmt = n => Number(n || 0).toLocaleString('vi-VN');
+            document.getElementById('tVisitDay').textContent = fmt(d.visitsToday);
+            document.getElementById('tVisitWeek').textContent = fmt(cur.visits);
+            document.getElementById('tVisitTotal').textContent = fmt(d.visitsTotal);
+            drawVisits(d.visitsDays || []);
             setBadge(d.bookingsNew);
             drawCharts(d.weeks);
             renderAlerts(d.alerts);
@@ -887,6 +899,23 @@ Mai thi Toán lo quá >> Mình ôn rồi >> Cảm ơn bạn, mình đỡ hơn | 
                 interaction: { mode: 'index', intersect: false },
                 plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, boxHeight: 12 } } },
                 scales: { x: { grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0 }, grid } }
+            }
+        });
+    }
+
+    function drawVisits(days) {
+        if (!window.Chart) return;
+        if (chartVisits) chartVisits.destroy();
+        chartVisits = new Chart(document.getElementById('chartVisits'), {
+            type: 'bar',
+            data: {
+                labels: days.map(x => x.day.slice(8, 10) + '/' + x.day.slice(5, 7)),
+                datasets: [{ label: 'Lượt truy cập', data: days.map(x => x.count), backgroundColor: SERIES[0], borderRadius: 4, maxBarThickness: 22 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#eef2f7' } } }
             }
         });
     }

@@ -183,6 +183,8 @@
         .crisis-line { background: var(--red); color: var(--white); padding: 10px 14px; border-radius: 8px; display: inline-block; margin-bottom: 18px; font-weight: 700; }
         .crisis-line a { color: var(--white); }
         footer .teacher-link { color: #93c5fd; font-size: 14px; }
+        footer .visit-counter { margin-top: 10px; font-size: 13px; color: #94a3b8; }
+        footer .visit-counter b { color: #e2e8f0; }
 
         /* ===== Hộp thoại (đặt lịch, tra cứu) ===== */
         .modal { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55); z-index: 500; align-items: center; justify-content: center; padding: 16px; }
@@ -345,6 +347,7 @@
             <div class="crisis-line">🆘 Khi gặp nguy hiểm hoặc có ý định làm hại bản thân: gọi ngay <a href="tel:111">111</a> (Tổng đài Quốc gia Bảo vệ Trẻ em, miễn phí 24/7) hoặc <a href="tel:115">115</a> (Cấp cứu)</div>
             <p>Bạn Đồng Hành là trợ lý AI hỗ trợ lắng nghe, không thay thế chuyên gia tâm lý. Hãy tìm đến thầy cô, cha mẹ hoặc người bạn tin tưởng khi cần.</p>
             <p style="margin-top:10px;">© 2026 Dự án KHKT – Trường THPT Đức Linh · <a class="teacher-link" href="/bimat.html">Bạn Đồng Hành giữ bí mật thế nào?</a> · <a class="teacher-link" href="/giaovien.html">Dành cho giáo viên</a></p>
+            <p class="visit-counter" id="visitCounter" hidden>👁 Lượt truy cập: <b id="visitTotal">–</b> · Hôm nay: <b id="visitToday">–</b></p>
         </div>
     </footer>
 
@@ -1066,6 +1069,23 @@
                 out.innerHTML = '<div class="notice err">' + escapeHtml(err.message) + '</div>';
             }
         });
+
+        // ===== Bộ đếm lượt truy cập (ẩn danh): mỗi tab chỉ tính 1 lượt, tải lại trang không tính thêm =====
+        (async () => {
+            try {
+                let counted = false;
+                try { counted = sessionStorage.getItem('bdh_visit') === '1'; } catch (e) { }
+                const r = counted
+                    ? await fetch('/api/visit')
+                    : await fetch('/api/visit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page: 'home' }) });
+                const d = await r.json();
+                if (!r.ok || d.total === null || d.total === undefined) return;
+                try { sessionStorage.setItem('bdh_visit', '1'); } catch (e) { }
+                document.getElementById('visitTotal').textContent = Number(d.total).toLocaleString('vi-VN');
+                document.getElementById('visitToday').textContent = Number(d.today).toLocaleString('vi-VN');
+                document.getElementById('visitCounter').hidden = false;
+            } catch (e) { }
+        })();
     </script>
 </body>
 </html>
